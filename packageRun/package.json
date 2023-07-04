@@ -14,16 +14,12 @@
   "contributes": {
     "commands": [
       {
-        "command": "run.dev",
-        "title": "npm run dev"
+        "command": "packagerun.commands",
+        "title": "packagerun:右键package.json"
       },
       {
-        "command": "run.build",
-        "title": "npm run build"
-      },
-      {
-        "command": "run.preview",
-        "title": "npm run preview"
+        "command": "packagerun.key",
+        "title": "packagerun:快捷键shift+r"
       }
     ],
     "menus": {
@@ -31,25 +27,16 @@
         {
           "group": "z_commands",
           "when": "resourceFilename == package.json",
-          "submenu": "packagerun.commands"
-        }
-      ],
-      "packagerun.commands": [
-        {
-          "command": "run.dev"
-        },
-        {
-          "command": "run.build"
-        },
-        {
-          "command": "run.preview"
+          "command": "packagerun.commands"
         }
       ]
     },
-    "submenus": [
+    "keybindings": [
       {
-        "id": "packagerun.commands",
-        "label": "packagerun"
+        "command": "packagerun.key",
+        "key": "shift+r",
+        "mac": "shift+r",
+        "when": "activeEditor != undefined"
       }
     ]
   },
@@ -73,5 +60,8 @@
     "glob": "^8.1.0",
     "mocha": "^10.2.0",
     "typescript": "^5.1.3"
+  },
+  "dependencies": {
+    "pkg-dir": "^7.0.0"
   }
 }

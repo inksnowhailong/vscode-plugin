@@ -1,71 +1,19 @@
 # packagerun README
 
-This is the README for your extension "packagerun". After writing up a brief description, we recommend including the following sections.
+这是一个用于读取**package.json**并允许你快速执行其中scripts 中内容的工具。同时你也可以配置一些自定义的命令，用于快速执行。为了少写烦人的npm run xxx 而生
+> Tip 通常来说，它是个前端项目或者node项目才会使用的插件,也许日后会取消对package.json的监测和限制。如果你有这种需求，可以到github上给我提个需求，也欢迎点😁start，让它扩展更多功能
+# 用法
+1、右键你的package.json，菜单将出现packagerun,点击它
+2、在打开了某个文件的情况下，shift+R，它会自动寻找最近的package.json
+3、vscode设置中，可以配置自定义的命令配置：
 
-## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
-
-## Requirements
-
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
-
-## Extension Settings
-
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+```javascript
+ "packagerun.commandOptions": [
+    {
+      "label":"打开xxx",
+      "script":"node xxx.js",
+      "path":"D:/xxxx/"  //可以指定执行目录，否则执行目录将是你使用shift+R的位置,若指定为关键字package 则在最近的package.josn所在目录执行
+    }
+  ],
+```

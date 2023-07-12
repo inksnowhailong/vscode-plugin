@@ -8,9 +8,10 @@
 
 # 用法😏
 
-1️⃣、右键你的 package.json，菜单将出现 packagerun,点击它
-2️⃣、在打开了某个文件的情况下，shift+R，它会自动寻找最近的 package.json
-3️⃣、vscode 设置中，可以配置自定义的命令配置：
+ 1. 右键你的 package.json，菜单将出现 packagerun,点击它
+ 2. 在打开了项目中某个文件的情况下，windows:ctrl+alt+x,mac:ctrl+cmd+x,使用你的小拇指，大拇指和食指操作，它会自动寻找最近的 package.json
+ 3. vscode 设置中，可以配置自定义的命令配置：
+
 
 # 配置⚙️
 #### 在vscode的setting文件中配置，这会在多个项目共享
@@ -19,7 +20,7 @@
     {
       "label":"打开xxx",
       "script":"node xxx.js",
-      //可以指定执行目录，否则执行目录将是你使用shift+R的位置,
+      //可以指定执行目录，否则执行目录将是你触发快捷键的位置,
       // 若指定为关键字package 则在最近的package.josn所在目录执行
       "path":"D:/xxxx/"
     }
@@ -47,7 +48,8 @@
 
 ---------------------------------
 
-# packagerun README English
+
+# packagerun README
 
 This is a tool that reads **package.json** and allows you to quickly execute the contents of the scripts in it. At the same time, you can also configure some custom commands for quick execution. Born to write less annoying npm run xxx
 
@@ -56,9 +58,10 @@ This is a tool that reads **package.json** and allows you to quickly execute the
 
 # Usage 😏
 
-1️⃣. Right-click your package.json, the menu will appear packagerun, click it
-2️⃣. When a file is opened, shift+R, it will automatically find the nearest package.json
-3️⃣. In vscode settings, you can configure custom command configuration:
+  1. Right-click your package.json, the menu will appear packagerun, click it
+  2. When a file in the project is opened, windows: ctrl+alt+x, mac: ctrl+cmd+x, use your little finger, thumb and index finger to operate, it will automatically find the nearest package.json
+  3. In vscode settings, you can configure custom command configuration:
+
 
 # configuration ⚙️
 #### Configure in the setting file of vscode, which will be shared in multiple projects
@@ -67,7 +70,7 @@ This is a tool that reads **package.json** and allows you to quickly execute the
      {
        "label": "Open xxx",
        "script": "node xxx.js",
-       //You can specify the execution directory, otherwise the execution directory will be where you use shift+R,
+       //You can specify the execution directory, otherwise the execution directory will be the location where you trigger the shortcut key,
        // If specified as the keyword package, it will be executed in the directory where the nearest package.josn is located
        "path":"D:/xxxx/"
      }

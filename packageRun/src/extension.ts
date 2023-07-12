@@ -9,7 +9,6 @@ export function activate(context: vscode.ExtensionContext) {
       const packageJsonPath = Uri.fsPath;
       await showScriptList(packageJsonPath);
     }
-
   );
   // 使用快捷键
   let disposable2 = vscode.commands.registerCommand(
@@ -20,7 +19,7 @@ export function activate(context: vscode.ExtensionContext) {
         const filePath = activeEditor.document.fileName;
         const pkgPath = await findNearestPackageJson(filePath);
         if (pkgPath) {
-           showScriptList(pkgPath, filePath);
+          showScriptList(pkgPath, filePath);
         } else {
           vscode.window.showInformationMessage(
             "未找到附近的package.json文件,请手动右键它，并执行packageRun"
@@ -48,7 +47,6 @@ type command = {
  * @return {*}
  */
 async function showScriptList(packageJsonPath: string, filePath = "") {
-
   // 执行路径
   let runPath = filePath || packageJsonPath;
 
@@ -66,13 +64,13 @@ async function showScriptList(packageJsonPath: string, filePath = "") {
     // 执行选中的脚本
     const targetScriptObj = scriptsList[selectedScript];
     // 如果设定了path 就用指定的path,path特殊指定为package时，在最近的package.json执行所在目录
-    let targetPath = '';
-    if( targetScriptObj.path==='package'){
+    let targetPath = "";
+    if (targetScriptObj.path === "package") {
       targetPath = path.dirname(packageJsonPath);
-    }else{
+    } else {
       targetPath = targetScriptObj.path
-      ? targetScriptObj.path
-      : path.dirname(runPath);
+        ? targetScriptObj.path
+        : path.dirname(runPath);
     }
     // 打开终端，执行指定命令
     runTargetScript(targetScriptObj.script, targetScriptObj.label, targetPath);
@@ -85,11 +83,11 @@ async function showScriptList(packageJsonPath: string, filePath = "") {
  * @param {string} packageJsonPath package.josn位置
  * @return {*}
  */
-async function getAllScriptsList(packageJsonPath:string) {
-    // 获取指定文件的目录的package.json 位置
-    const scriptsList: {
-      [key: string]: command;
-    } = {};
+async function getAllScriptsList(packageJsonPath: string) {
+  // 获取指定文件的目录的package.json 位置
+  const scriptsList: {
+    [key: string]: command;
+  } = {};
 
   // 读取package.json文件
   const packageJsonContent = await import(packageJsonPath);
@@ -109,15 +107,22 @@ async function getAllScriptsList(packageJsonPath:string) {
     item.type = "local";
     scriptsList[item.label] = item;
   });
-//读取项目单独配置文件中的内容
-  const configJSON = await import(path.resolve(path.dirname(packageJsonPath),'packagerun.config.json'));
-  configJSON.commandOptions?.forEach((item: command) => {
-    item.type = "local";
-    scriptsList[item.label] = item;
-  });
+  //读取项目单独配置文件中的内容
+  try {
+    const configJSON = await import(
+      path.resolve(path.dirname(packageJsonPath), "packagerun.config.json")
+    );
+
+    configJSON?.commandOptions?.forEach((item: command) => {
+      item.type = "local";
+      scriptsList[item.label] = item;
+    });
+  } catch (error) {
+
+  }
+
   return scriptsList;
 }
-
 
 /**
  * @description: 执行指定脚本

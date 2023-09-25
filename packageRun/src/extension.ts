@@ -48,7 +48,7 @@ type command = {
  */
 async function showScriptList(packageJsonPath: string, filePath = "") {
   // 执行路径
-  let runPath = filePath || packageJsonPath;
+  // let runPath = filePath || packageJsonPath;
 
   // 获取所有选项
   const scriptsList = await getAllScriptsList(packageJsonPath);
@@ -57,20 +57,19 @@ async function showScriptList(packageJsonPath: string, filePath = "") {
   const selectedScript = await vscode.window.showQuickPick(
     Object.keys(scriptsList),
     {
-      placeHolder: "选择要执行的脚本,执行目录为：" + path.dirname(runPath),
+      placeHolder: "选择要执行的脚本",
     }
   );
   if (selectedScript) {
     // 执行选中的脚本
     const targetScriptObj = scriptsList[selectedScript];
-    // 如果设定了path 就用指定的path,path特殊指定为package时，在最近的package.json执行所在目录
+
     let targetPath = "";
-    if (targetScriptObj.path === "package") {
+    // 没有path或者path为package 就在package.json位置执行 否则就在指定位置执行
+    if(!targetScriptObj.path||targetScriptObj.path==='package'){
       targetPath = path.dirname(packageJsonPath);
-    } else {
-      targetPath = targetScriptObj.path
-        ? targetScriptObj.path
-        : path.dirname(runPath);
+    }else{
+      targetPath = targetScriptObj.path;
     }
     // 打开终端，执行指定命令
     runTargetScript(targetScriptObj.script, targetScriptObj.label, targetPath);

@@ -2,7 +2,7 @@
   "name": "packagerun",
   "displayName": "packagerun",
   "description": "vscode扩展，读取package.json并在左侧目录的package.json右键里面生成scripts的配置内容，快速运行npm run",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "author": {
     "name": "inksnow",
     "email": "inksnowhailong@gmail.com"
@@ -67,8 +67,10 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js"
+    "test": "node ./out/test/runTest.js",
+    "publish": "vsce publish"
   },
+
   "devDependencies": {
     "@types/glob": "^8.1.0",
     "@types/mocha": "^10.0.1",

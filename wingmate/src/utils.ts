@@ -1,10 +1,17 @@
 import axios from "axios";
-import { mkdirSync, writeFileSync } from "fs";
+import {
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  readFile,
+  existsSync,
+  writeFile,
+} from "fs";
 import * as Fuse from "fuse.js";
-import type FuseType from "fuse.js";
 import { dirname, isAbsolute, resolve } from "path";
 import * as vscode from "vscode";
-
+import { findNearestPackageJson } from "./tool";
+import * as ts from "typescript";
 interface AsyncUtil {
   id: number;
   name: string;
@@ -35,12 +42,8 @@ export default function () {
       keys: ["name", "title", "desc"],
     });
   });
-  /*
-       const activeEditor = vscode.window.activeTextEditor;
-      if (activeEditor) {
-        const filePath = activeEditor.document.fileName;
-        const pkgPath = await findNearestPackageJson(filePath);
-    */
+  // 注册命令
+  regCommand();
   //  一共代码补全来实现的查询功能  示例：@u use| 竖线来触发搜索 use是关键字，@u 是前置触发条件
   return vscode.languages.registerCompletionItemProvider(
     LANGUAGES, // 语言
@@ -49,26 +52,27 @@ export default function () {
         const lineTextBeforeCursor = document
           .lineAt(position)
           .text.slice(0, position.character);
-        const utIndex= lineTextBeforeCursor.indexOf("@u");
+        const utIndex = lineTextBeforeCursor.indexOf("@u");
         if (!~utIndex) {
           return undefined;
         }
         // 竖线|位置
-        const lineIndex = lineTextBeforeCursor.indexOf("|",utIndex);
+        const lineIndex = lineTextBeforeCursor.indexOf("|", utIndex);
 
         // 查询能够检索到的utils
-        const keyWord = lineTextBeforeCursor.slice(
-          utIndex+3,lineIndex
+        const keyWord = lineTextBeforeCursor.slice(utIndex + 3, lineIndex);
+        // 设置一个替换代码的范围 因为需要把|和@ut给去掉  +5是因为 @u+一个空格+|一共五个位置
+        const range = new vscode.Range(
+          position.translate(0, -(keyWord.length + 4)),
+          position
         );
-          // 设置一个替换代码的范围 因为需要把|和@ut给去掉  +5是因为 @u+一个空格+|一共五个位置
-          const range = new vscode.Range(position.translate(0, -(keyWord.length+4)), position);
         // 查询选项列表
         const filterData: {
           item: AsyncUtil;
           refIndex: number;
         }[] = fuse.search(keyWord);
         // 创建代码提示项
-        const ls = filterData.map((data,index) => ({
+        const ls = filterData.map((data, index) => ({
           documentation: new vscode.MarkdownString().appendCodeblock(
             data.item.souceCode,
             "typescript"
@@ -76,8 +80,13 @@ export default function () {
           insertText: data.item.name,
           label: data.item.name + " " + data.item.title,
           detail: data.item.desc,
-          filterText: "@u "+keyWord+'|',
-          sortText:index+'',
+          filterText: "@u " + keyWord + "|",
+          sortText: index + "",
+          command: {
+            command: "wingmate.util",
+            title: "wingmate.util" + data.item.title,
+            arguments: [data.item],
+          },
           range,
         }));
         return ls;
@@ -98,14 +107,10 @@ async function getAllUtils() {
   return targetData;
 }
 
-
 // 创建Utils文件
-function mkUtilsFile(tsMessage: string, path: string) {
-  // 有传入的路径，就在传入的路径进行创建，否则使用默认路径
-  const utilsPath = path
-    ? resolve(normalizePath(path), "zingUtils.ts")
-    : resolve(process.cwd(), "src/utils/zingUtils.ts");
-
+async function mkUtilsFile(util: AsyncUtil, path: string) {
+  // 文件路径
+  const utilsPath = resolve(normalizePath(path), `src/utils/${util.name}.ts`);
   // 创建中间目录（如果不存在）
   try {
     mkdirSync(dirname(utilsPath), { recursive: true }); // 使用 recursive 选项自动创建中间目录
@@ -114,9 +119,8 @@ function mkUtilsFile(tsMessage: string, path: string) {
       throw err;
     }
   }
-
   // 现在可以创建文件并写入内容
-  writeFileSync(utilsPath, tsMessage);
+  writeFileSync(utilsPath, util.souceCode);
 }
 
 // 对绝对和相对路径进行判断
@@ -189,9 +193,115 @@ function patchImport(sourceCode: string) {
   return mergedSourceCode;
 }
 // 注册一共命令，当选择了某个utils代码补全函数时候，触发去修改 vite.config里面的zingUtilsInstall
-function regCommand(){
-  vscode.commands.registerCommand('wingmate.util', (utilName) => {
-    // 在这里执行你的操作
-    vscode.window.showInformationMessage('My Command Executed!');
+function regCommand() {
+  vscode.commands.registerCommand("wingmate.util", async (util: AsyncUtil) => {
+    const activeEditor = vscode.window.activeTextEditor;
+    if (activeEditor) {
+      const filePath = activeEditor.document.fileName;
+      const pkgPath = await findNearestPackageJson(filePath);
+      if (!pkgPath) {
+        return;
+      }
+      // vite路径
+      const vitePath = resolve(dirname(pkgPath), "vite.config.ts");
+
+      // 读取 vite 文件内容
+      readFile(vitePath, "utf-8", (err, configCode) => {
+        if (err) {
+          // 发生错误时处理
+          // 没有使用的时候的处理
+          mkUtilsFile(util, dirname(pkgPath));
+          // createImportCode(activeEditor, dirname(pkgPath), util.name);
+          return;
+        }
+        // 使用正则表达式匹配 import xxx from 'zingutilsinstall'语句
+        const importRegex = /import\s+(.*?)\s+from\s+['"]zingutilsinstall['"]/;
+        const match = importRegex.exec(configCode);
+        // 有使用zingutilsinstall这个插件 match[1] 是因为 zingutilsinstall变量的impor命名未必是什么
+        if (match && match[1]) {
+          // 有使用zingutilsinstall这个插件 的处理
+          // 使用正则表达式匹配函数调用
+          const regex = new RegExp(
+            `(${(match as unknown as string)[1]})\\s*\\(\\s*({[^}]+})\\s*\\)`
+          );
+          // 匹配 zingutilsinstall 的调用
+          const methodMatch = regex.exec(configCode);
+
+          if (methodMatch) {
+            const argumentsString = methodMatch[2];
+            // 如果参数是一个JSON对象，你可以将其解析成JavaScript对象
+            try {
+              // 获取到 zingutilsinstall插件的配置
+              const zingutilsinstallConfig = eval(`(${argumentsString})`);
+              // 如果有include ，就加入util
+              if (!zingutilsinstallConfig.include?.includes(util.name)) {
+                zingutilsinstallConfig.include?.push(util.name);
+              }
+              // 如果有exclude，就删除里面的util
+              if (zingutilsinstallConfig.exclude?.includes(util.name)) {
+                zingutilsinstallConfig.exclude.splice(
+                  zingutilsinstallConfig.exclude.indexOf(util.name),
+                  1
+                );
+              }
+              // 将旧的config 修改掉
+              const newFileContent = configCode.replace(
+                argumentsString,
+                JSON.stringify(zingutilsinstallConfig)
+              );
+              //写回文件
+              writeFileSync(vitePath, newFileContent, "utf8");
+              // createImportCode(activeEditor, dirname(pkgPath), util.name);
+            } catch (error) {
+              console.error("Error parsing :", error);
+            }
+          }
+        } else {
+          // 没有使用的时候的处理
+          mkUtilsFile(util, dirname(pkgPath));
+          // createImportCode(activeEditor, dirname(pkgPath), util.name);
+        }
+      });
+    }
   });
+}
+// 加入import 语句
+function createImportCode(
+  activeEditor: vscode.TextEditor,
+  path: string,
+  utilName: string
+) {
+
+  // 获取当前编辑器的文档 URI
+  const uri = activeEditor.document.uri;
+  // 从 URI 中获取文件扩展名
+  const fileExtension = uri.fsPath.split(".").pop();
+  console.log('object :>> ', uri,fileExtension);
+  // uri
+  const utilsPath = resolve(normalizePath(path), `src/utils/${utilName}.ts`);
+  const codeToInsert = `imort {${utilName}} from '@/utils/${utilName}.ts';\n`;
+  if (["ts", "tsx"].includes(fileExtension as string)) {
+
+    // 读取文件内容
+    readFile(utilsPath, "utf8", (err, data) => {
+      if (err) {
+        console.error(`读取文件时出错：${err}`);
+        return;
+      }
+
+      // 在文件内容的开头插入代码
+      const newData = codeToInsert + data;
+
+      // 写入文件
+      writeFile(utilsPath, newData, "utf8", (err) => {
+        if (err) {
+          console.error(`写入文件时出错：${err}`);
+          return;
+        }
+
+        console.log("代码已成功插入到文件开头！");
+      });
+    });
+  }else if(['vue'].includes(fileExtension as string)){
+  }
 }

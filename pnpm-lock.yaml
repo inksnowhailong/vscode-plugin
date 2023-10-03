@@ -1,0 +1,13 @@
+lockfileVersion: '6.0'
+
+dependencies:
+  fuse.js:
+    specifier: ^6.6.2
+    version: 6.6.2
+
+packages:
+
+  /fuse.js@6.6.2:
+    resolution: {integrity: sha512-cJaJkxCCxC8qIIcPBF9yGxY0W/tVZS3uEISDxhYIdtk8OL93pe+6Zj7LjCqVV4dzbqcriOZ+kQ/NE4RXZHsIGA==}
+    engines: {node: '>=10'}
+    dev: false

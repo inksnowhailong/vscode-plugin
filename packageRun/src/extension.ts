@@ -182,3 +182,4 @@ async function findNearestPackageJson(
 export function deactivate() {
   // contextRef = null
 }
+

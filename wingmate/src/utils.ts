@@ -21,11 +21,7 @@ interface AsyncUtil {
   title: string;
 }
 /** Supported language type */
-const LANGUAGES = [
-  "typescriptreact",
-  "typescript",
-  'vue'
-];
+const LANGUAGES = ["typescriptreact", "typescript", "vue"];
 // 请求到的所有工具函数
 const allUtils: AsyncUtil[] = [];
 // 搜索相关内容
@@ -40,6 +36,7 @@ export default function () {
       keys: ["name", "title", "desc"],
     });
   });
+
   // 注册命令
   regCommand();
   //  一共代码补全来实现的查询功能  示例：@u use| 竖线来触发搜索 use是关键字，@u 是前置触发条件
@@ -56,7 +53,6 @@ export default function () {
         }
         // 竖线|位置
         const lineIndex = lineTextBeforeCursor.indexOf("|", utIndex);
-
         // 查询能够检索到的utils
         const keyWord = lineTextBeforeCursor.slice(utIndex + 3, lineIndex);
         // 设置一个替换代码的范围 因为需要把|和@ut给去掉  +5是因为 @u+一个空格+|一共五个位置
@@ -190,6 +186,7 @@ function patchImport(sourceCode: string) {
   mergedSourceCode = `/* eslint-disable */\n` + mergedSourceCode;
   return mergedSourceCode;
 }
+
 // 注册一个命令，当选择了某个utils代码补全函数时候，触发去修改 vite.config里面的zingUtilsInstall
 function regCommand() {
   vscode.commands.registerCommand("wingmate.util", async (util: AsyncUtil) => {
@@ -269,17 +266,15 @@ function createImportCode(
   path: string,
   utilName: string
 ) {
-
   // 获取当前编辑器的文档 URI
   const uri = activeEditor.document.uri;
   // 从 URI 中获取文件扩展名
   const fileExtension = uri.fsPath.split(".").pop();
-  console.log('object :>> ', uri,fileExtension);
+  console.log("object :>> ", uri, fileExtension);
   // uri
   const utilsPath = resolve(normalizePath(path), `src/utils/${utilName}.ts`);
   const codeToInsert = `imort {${utilName}} from '@/utils/${utilName}.ts';\n`;
   if (["ts", "tsx"].includes(fileExtension as string)) {
-
     // 读取文件内容
     readFile(utilsPath, "utf8", (err, data) => {
       if (err) {
@@ -300,6 +295,8 @@ function createImportCode(
         console.log("代码已成功插入到文件开头！");
       });
     });
-  }else if(['vue'].includes(fileExtension as string)){
+  } else if (["vue"].includes(fileExtension as string)) {
   }
 }
+
+

@@ -3,29 +3,41 @@
   "displayName": "wingmate",
   "description": "僚机",
   "version": "0.0.1",
+  "author": {
+    "name": "inksnow",
+    "email": "inksnowhailong@gmail.com"
+  },
+  "publisher": "inksnow",
   "engines": {
-    "vscode": "^1.82.0"
+    "vscode": "^1.70.0"
   },
   "categories": [
     "Other"
   ],
   "activationEvents": [
     "onLanguage:typescript",
-    "onLanguage:vue"
+    "onLanguage:vue",
+    "onStartupFinished"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/inksnowhailong/vscode-plugin"
+  },
   "main": "./out/extension.js",
   "scripts": {
-    "vscode:prepublish": "pnpm run compile",
+    "vscode:prepublish": "npm run compile",
+    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=out/main.js --external:vscode --format=cjs --platform=node",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "pnpm run compile && pnpm run lint",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js"
+    "test": "node ./out/test/runTest.js",
+    "build": " vsce package "
   },
   "devDependencies": {
     "@types/mocha": "^10.0.2",
     "@types/node": "18.x",
-    "@types/vscode": "^1.82.0",
+    "@types/vscode": "^1.70.0",
     "@typescript-eslint/eslint-plugin": "^6.7.3",
     "@typescript-eslint/parser": "^6.7.3",
     "@vscode/test-electron": "^2.3.4",
@@ -36,8 +48,10 @@
   },
   "dependencies": {
     "axios": "^1.5.1",
+    "esbuild": "^0.19.4",
     "fuse.js": "^6.6.2",
     "puppeteer-core": "^21.3.6",
-    "tabletojson": "^3.0.0"
+    "tabletojson": "^3.0.0",
+    "yallist": "^4.0.0"
   }
 }

@@ -1,9 +1,14 @@
-# Change Log
 
-All notable changes to the "wingmate" extension will be documented in this file.
+# 更新日志
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+所有重要的更改、新功能和修复都将在此记录。
 
-## [Unreleased]
+## [0.0.1] - 2023-10-6
 
-- Initial release
+### 初次发版
+这是一个test尝试，根据当前公司，已有的业务，工程代码结构，来自动化一些事
+#### @u xxx|
+搜索使用工具函数
+#### @apiu urlxxxx|
+爬虫 knife4j的java接口页面，生成接口代码
+

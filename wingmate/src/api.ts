@@ -97,10 +97,12 @@ async function spiderHtmlData(url: string) {
 // 执行js代码 在页面中得到数据
 function parseAllPageData() {
   // 请求method和url地址的信息
+   // @ts-ignore
   const urlAndMethod = document
     .getElementsByClassName("knife4j-api-summary")[0]
     ?.innerText?.split("\n");
   // 描述信息
+  // @ts-ignore
   const desc = document.getElementsByClassName("api-body-desc")[0]?.innerText;
   // // 表格
   // const tables = document.getElementsByClassName("ant-table-content");

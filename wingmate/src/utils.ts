@@ -11,7 +11,6 @@ import * as Fuse from "fuse.js";
 import { dirname, isAbsolute, resolve } from "path";
 import * as vscode from "vscode";
 import { findNearestPackageJson } from "./tool";
-import * as ts from "typescript";
 interface AsyncUtil {
   id: number;
   name: string;
@@ -25,8 +24,7 @@ interface AsyncUtil {
 const LANGUAGES = [
   "typescriptreact",
   "typescript",
-  "javascript",
-  "javascriptreact",
+  'vue'
 ];
 // 请求到的所有工具函数
 const allUtils: AsyncUtil[] = [];
@@ -192,7 +190,7 @@ function patchImport(sourceCode: string) {
   mergedSourceCode = `/* eslint-disable */\n` + mergedSourceCode;
   return mergedSourceCode;
 }
-// 注册一共命令，当选择了某个utils代码补全函数时候，触发去修改 vite.config里面的zingUtilsInstall
+// 注册一个命令，当选择了某个utils代码补全函数时候，触发去修改 vite.config里面的zingUtilsInstall
 function regCommand() {
   vscode.commands.registerCommand("wingmate.util", async (util: AsyncUtil) => {
     const activeEditor = vscode.window.activeTextEditor;

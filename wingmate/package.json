@@ -10,7 +10,8 @@
     "Other"
   ],
   "activationEvents": [
-    "onLanguage:typescript"
+    "onLanguage:typescript",
+    "onLanguage:vue"
   ],
   "main": "./out/extension.js",
   "scripts": {
@@ -35,6 +36,8 @@
   },
   "dependencies": {
     "axios": "^1.5.1",
-    "fuse.js": "^6.6.2"
+    "fuse.js": "^6.6.2",
+    "puppeteer-core": "^21.3.6",
+    "tabletojson": "^3.0.0"
   }
 }

@@ -91,7 +91,7 @@ async function spiderHtmlData(url: string) {
     browser.close();
     return pageData;
   } catch (error) {
-    console.log("error :>> ", error);
+    console.log("error>>", error);
   }
 }
 // 执行js代码 在页面中得到数据
@@ -183,13 +183,14 @@ function getChromePath() {
       return path;
     } else if (platform() === "darwin") {
       // For macOS
-      const result = execSync(
-        "mdfind \"kMDItemCFBundleIdentifier == 'com.google.Chrome'\""
-      );
-      const paths = result.toString().split("\n").filter(Boolean);
-      if (paths.length > 0) {
-        return paths[0];
-      }
+      // const result = execSync(
+      //   `mdfind kMDItemFSName="Google Chrome.app"`
+      // );
+      // const paths = result.toString().split("\n").filter(Boolean);
+      // if (paths.length > 0) {
+      //   return paths[0];
+      // }
+      return '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
     }
   } catch (error: any) {
     console.error("Error:", error.message);

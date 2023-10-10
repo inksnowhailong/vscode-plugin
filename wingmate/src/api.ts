@@ -42,7 +42,8 @@ export default function () {
           return [];
         }
         // 使用模板 生成接口代码
-        const { apiName, apiCode } = createApiCode(pageData);
+        const { apiName, apiCode } = createApiCode(pageData,url);
+        console.log('apiCode :>> ', apiCode);
         return [
           {
             documentation: new vscode.MarkdownString().appendCodeblock(
@@ -264,7 +265,7 @@ function regCommand() {
   );
 }
 // 创建 api文件里面的内容
-function createApiCode(pageData: spiderDataType) {
+function createApiCode(pageData: spiderDataType,url:string) {
   // 使用正则表达式匹配 /a/{xxx} 部分  这种特殊的路径中参数处理
   const regex = /(.*)\/\{(\w+)\}/;
   const match = pageData.url.match(regex);
@@ -285,23 +286,24 @@ function createApiCode(pageData: spiderDataType) {
     .join("");
 
   const code = `
-  /**
-   * @description: ${pageData.desc}
-   * @param {T} data
-   * @type {T} ${pageData.method}
-   * @return {*}
-   */
-  export const ${
-    pageData.method.toLowerCase() + caml
-  } = (data: any): Promise<any> => {
-    return actionRequest({
-      url: '${path}'${endParams ? `+'/'+data.${endParams}` : ""},
-      method: '${pageData.method.toLowerCase()}',
-      params: data
-    })
-  }
-  `;
-
+/**
+ * @description: ${pageData.desc}
+ * @param {T} data
+ * @type {T} ${pageData.method}
+ * @doc {string} ${url}
+ * @return {*}
+ */
+export const ${
+  pageData.method.toLowerCase() + caml
+} = (data: Record<string,any>): Promise<any> => {
+  return actionRequest({
+    url: '${path}'${endParams ? `+'/'+data.${endParams}` : ""},
+    method: '${pageData.method.toLowerCase()}',
+    ${pageData.method.toLowerCase()==='get'?'params':'data'}: data
+  })
+}
+`;
+  console.log('code :>> ', code);
   return {
     apiName: pageData.method.toLowerCase() + caml,
     apiCode: code,

@@ -23,7 +23,7 @@ export default function () {
           .lineAt(position)
           .text.slice(0, position.character);
         const utIndex = lineTextBeforeCursor.indexOf("@api");
-        if (!~utIndex||!lineTextBeforeCursor.includes("|")) {
+        if (!~utIndex || !lineTextBeforeCursor.includes("|")) {
           return undefined;
         }
         // 竖线|位置
@@ -42,8 +42,8 @@ export default function () {
           return [];
         }
         // 使用模板 生成接口代码
-        const { apiName, apiCode } = createApiCode(pageData,url);
-        console.log('apiCode :>> ', apiCode);
+        const { apiName, apiCode } = createApiCode(pageData, url);
+        console.log("apiCode :>> ", apiCode);
         return [
           {
             documentation: new vscode.MarkdownString().appendCodeblock(
@@ -68,37 +68,51 @@ export default function () {
   );
 }
 // 链接网页 爬取内容
-async function spiderHtmlData(url: string) {
+async function spiderHtmlData(
+  url: string
+): Promise<spiderDataType | undefined> {
   if (!url.includes("http")) {
     return;
   }
-  const progress = await createProgress();
 
-  const chromePath = getChromePath();
-  progress.report({ increment: 10, message: "开始爬取..." });
-  try {
-    const browser = await puppeteer.launch({
-      executablePath: chromePath || "",
+  const progressOptions = {
+    location: vscode.ProgressLocation.Notification,
+    title: "爬取接口页面内容",
+    cancellable: false,
+  };
+  // 搞一个promise拦截器
+  const pageData:spiderDataType = await new Promise((resolve) => {
+    vscode.window.withProgress(progressOptions, async (progress) => {
+      // progress = p;
+      const chromePath = getChromePath();
+      progress.report({ increment: 10, message: "开始爬取..." });
+      try {
+        const browser = await puppeteer.launch({
+          executablePath: chromePath || "",
+        });
+        const page = await browser.newPage();
+        progress.report({ increment: 20, message: "创建页面..." });
+        await page.goto(url);
+        progress.report({ increment: 40, message: "进入页面..." });
+        await page.waitForSelector(".knife4j-api-summary");
+        progress.report({ increment: 80, message: "dom加载完成..." });
+        const pageData: spiderDataType = await page.evaluate(parseAllPageData);
+        progress.report({ increment: 100, message: "内容提取完成..." });
+        browser.close();
+
+        resolve(pageData);
+      } catch (error) {
+        console.log("error>>", error);
+      }
     });
-    const page = await browser.newPage();
-    progress.report({ increment: 10, message: "创建页面..." });
-    console.log("startgo :>> ", url);
-    await page.goto(url);
-    progress.report({ increment: 40, message: "进入页面..." });
-    await page.waitForSelector(".knife4j-api-summary");
-    progress.report({ increment:10, message: "dom加载完成..." });
-    const pageData: spiderDataType = await page.evaluate(parseAllPageData);
-    progress.report({ increment:30, message: "内容提取完成..." });
-    browser.close();
-    return pageData;
-  } catch (error) {
-    console.log("error>>", error);
-  }
+  });
+return pageData;
+  // const progress = await createProgress();
 }
 // 执行js代码 在页面中得到数据
 function parseAllPageData() {
   // 请求method和url地址的信息
-   // @ts-ignore
+  // @ts-ignore
   const urlAndMethod = document
     .getElementsByClassName("knife4j-api-summary")[0]
     ?.innerText?.split("\n");
@@ -191,7 +205,7 @@ function getChromePath() {
       // if (paths.length > 0) {
       //   return paths[0];
       // }
-      return '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+      return "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
     }
   } catch (error: any) {
     console.error("Error:", error.message);
@@ -265,7 +279,7 @@ function regCommand() {
   );
 }
 // 创建 api文件里面的内容
-function createApiCode(pageData: spiderDataType,url:string) {
+function createApiCode(pageData: spiderDataType, url: string) {
   // 使用正则表达式匹配 /a/{xxx} 部分  这种特殊的路径中参数处理
   const regex = /(.*)\/\{(\w+)\}/;
   const match = pageData.url.match(regex);
@@ -294,16 +308,17 @@ function createApiCode(pageData: spiderDataType,url:string) {
  * @return {*}
  */
 export const ${
-  pageData.method.toLowerCase() + caml
-} = (data: Record<string,any>): Promise<any> => {
+    pageData.method.toLowerCase() + caml
+  } = (data: Record<string,any>): Promise<any> => {
   return actionRequest({
     url: '${path}'${endParams ? `+'/'+data.${endParams}` : ""},
     method: '${pageData.method.toLowerCase()}',
-    ${pageData.method.toLowerCase()==='get'?'params':'data'}: data
+    ${pageData.method.toLowerCase() === "get" ? "params" : "data"}: data
   })
 }
+
 `;
-  console.log('code :>> ', code);
+  console.log("code :>> ", code);
   return {
     apiName: pageData.method.toLowerCase() + caml,
     apiCode: code,
@@ -317,11 +332,11 @@ async function createProgress() {
     title: "爬取接口页面内容",
     cancellable: false,
   };
-  let progress = null;
+  let progress: any = null;
   await vscode.window.withProgress(progressOptions, async (p) => {
     progress = p;
+    progress.report({ increment: 10, message: "开始爬取..." });
   });
-
   // vscode.window.showInformationMessage("任务已完成！");
   return progress as unknown as vscode.Progress<{
     message?: string | undefined;

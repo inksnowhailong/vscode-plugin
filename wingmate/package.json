@@ -2,7 +2,7 @@
   "name": "wingmate",
   "displayName": "wingmate",
   "description": "僚机",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "author": {
     "name": "inksnow",
     "email": "inksnowhailong@gmail.com"
@@ -27,7 +27,6 @@
   "main": "./out/extension.js",
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=out/main.js --external:vscode --format=cjs --platform=node",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "pnpm run compile && pnpm run lint",

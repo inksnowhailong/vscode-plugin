@@ -6,7 +6,7 @@
 #### @u xxx|
 搜索使用工具函数
 其中 @u 为判断条件  xxx为工具函数搜索关键字，|为触发。这需要配合zingutilsinstall插件使用
-#### @apiu urlxxxx|
+#### @api urlxxxx|
 爬虫 knife4j的java接口页面，生成接口代码
 
 其中@api 为判断条件  urlxxx这位置是javaknife4j接口页面的url地址，|为触发条件，会生成api文件夹里面的模块，和接口请求代码

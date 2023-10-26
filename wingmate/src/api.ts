@@ -129,7 +129,6 @@ function parseAllPageData() {
     .getElementsByClassName("knife4j-api-summary")[0]
     ?.textContent?.trim()
     ?.split(" ");
-  console.log("urlAndMethod :>> ", urlAndMethod);
   // 描述信息
   // @ts-ignore
   const desc =
@@ -187,7 +186,9 @@ function parseAllPageData() {
         }
       }
     }
-    parsetrData(tbody.querySelectorAll("tr")[0], data);
+    if (tbody.querySelectorAll("tr")?.[0]) {
+      parsetrData(tbody.querySelectorAll("tr")[0], data);
+    }
 
     return data.children;
   }
@@ -227,16 +228,21 @@ function parseAllPageData() {
             paramItem["是否必须"] === "true" ? "" : "?"
           }:${itemType};\/\/ ${paramItem["参数说明"]}\n`;
         });
-        return begin + "}"+( data["数据类型"].includes("array") ? "[]" : "");
-      } else if (data["请求类型"] === "path") {
-        return `{${data["参数名称"]}${data["是否必须"] === "true" ? "" : "?"}:${
-          data["数据类型"]
-        }}`;
+        return begin + "}" + (data["数据类型"].includes("array") ? "[]" : "");
+      } else {
+        data = data.pre as Record<string, any>;
+        let begin = "{\n";
+        data.children.forEach((paramItem: any) => {
+          let itemType = javaToTs(paramItem["数据类型"]);
+          begin += `${paramItem["参数名称"]}${
+            paramItem["是否必须"] === "true" ? "" : "?"
+          }:${itemType};\/\/ ${paramItem["参数说明"]}\n`;
+        });
+        return  begin + "}";
       }
     } catch (error) {
       return "Record<string,any>";
     }
-    return "Record<string,any>";
   }
   //parseTableData的数据 转换为Ts类型  对于响应参数的
   function resDataToTs(data: Record<string, any>[] | undefined) {

@@ -12,7 +12,9 @@ interface SpiderDataType {
   url: string;
   desc: string;
   paramsType: string;
+  paramsData: Record<string, any>;
   resType: string;
+  resData: Record<string, any>;
 }
 
 type PageModule =
@@ -53,8 +55,10 @@ export default function () {
           return [];
         }
         // 使用模板 生成接口代码
-        const { apiName, apiCode } = createApiCode(pageData, url);
-        console.log("apiCode :>> ", apiCode);
+        const { apiName, apiCode, paramsType, resultType } = createApiCode(
+          pageData,
+          url
+        );
         return [
           {
             documentation: new vscode.MarkdownString().appendCodeblock(
@@ -68,7 +72,7 @@ export default function () {
             command: {
               command: "wingmate.api",
               title: "wingmate.api",
-              arguments: [pageData, apiName, apiCode],
+              arguments: [pageData, apiName, apiCode, paramsType, resultType],
             },
             range,
           },
@@ -108,8 +112,9 @@ async function spiderHtmlData(
         await page.goto(url);
         progress.report({ increment: 70, message: "dom数据提取处理..." });
         await page.waitForSelector(".knife4j-api-summary");
-
+        // 解析ts类型信息
         const pageData: SpiderDataType = await page.evaluate(parseAllPageData);
+
         progress.report({ increment: 100, message: "内容提取完成..." });
         browser.close();
         resolve(pageData);
@@ -141,9 +146,16 @@ function parseAllPageData() {
     pre[cur.textContent as PageModule] = cur.nextElementSibling as HTMLElement;
     return pre;
   }, {} as Record<PageModule, HTMLElement>);
+
+  // const paramsType = paramsdataToTS(parseTableData(titleObj["请求参数"])?.[0]);
+  // const resType = resDataToTs(parseTableData(titleObj["响应参数"]));
   //参数相关数据
-  const paramsType = paramsdataToTS(parseTableData(titleObj["请求参数"])?.[0]);
-  const resType = resDataToTs(parseTableData(titleObj["响应参数"]));
+  const paramsData = parseTableData(titleObj["请求参数"]);
+  const paramsType = paramsdataToTS(paramsData?.[0]);
+  // 返回值相关
+  const resData = parseTableData(titleObj["响应参数"]);
+  const resType = resDataToTs(resData);
+
   // 解析table数据函数 必须定义在这里 因为page.evaluate里面的作用域 引用不到当前文件内定义的东西
   function parseTableData(table: HTMLElement) {
     // 获取表格头部和数据行
@@ -197,11 +209,10 @@ function parseAllPageData() {
     if (!data) {
       return "Record<string,any>";
     }
-
     // 首先得到的表格解析后的数据 第一层  会包含整个请求参数的外层类型
     try {
       if (data["请求类型"] === "body") {
-        let begin = "{\n";
+        let begin = `{\n`;
         data.children.forEach((paramItem: any) => {
           let itemType = javaToTs(paramItem["数据类型"]);
 
@@ -211,34 +222,42 @@ function parseAllPageData() {
               (itemType.includes("Array") || itemType.includes("Record")) &&
               paramItem.children.length > 0
             ) {
-              let childbegin = "{\n";
+              let childbegin = `{\n`;
               paramItem.children.forEach((paramChild: any) => {
                 const childItemType = javaToTs(paramChild["数据类型"]);
-                childbegin += `${paramChild["参数名称"]}${
+                childbegin += `  /**
+     * ${paramChild["参数说明"]}
+     */\n`;
+                childbegin += `  ${paramChild["参数名称"]}${
                   paramChild["是否必须"] === "true" ? "" : "?"
-                }:${childItemType};\/\/ ${paramChild["参数说明"]}\n`;
+                }: ${childItemType}\n`;
               });
               itemType = itemType.replace("any", childbegin + "}");
             }
           } catch (error) {
             itemType = javaToTs(paramItem["数据类型"]);
           }
-
-          begin += `${paramItem["参数名称"]}${
+          begin += `  /**
+   * ${paramItem["参数说明"]}
+   */\n`;
+          begin += `  ${paramItem["参数名称"]}${
             paramItem["是否必须"] === "true" ? "" : "?"
-          }:${itemType};\/\/ ${paramItem["参数说明"]}\n`;
+          }: ${itemType}\n`;
         });
         return begin + "}" + (data["数据类型"].includes("array") ? "[]" : "");
       } else {
         data = data.pre as Record<string, any>;
-        let begin = "{\n";
+        let begin = `{\n`;
         data.children.forEach((paramItem: any) => {
           let itemType = javaToTs(paramItem["数据类型"]);
-          begin += `${paramItem["参数名称"]}${
+          begin += `  /**
+     * ${paramItem["参数说明"]}
+     */\n`;
+          begin += `  ${paramItem["参数名称"]}${
             paramItem["是否必须"] === "true" ? "" : "?"
-          }:${itemType};\/\/ ${paramItem["参数说明"]}\n`;
+          }: ${itemType}\n`;
         });
-        return  begin + "}";
+        return begin + "}";
       }
     } catch (error) {
       return "Record<string,any>";
@@ -255,7 +274,7 @@ function parseAllPageData() {
       data.find((item) => {
         if (item["参数名称"] === "data") {
           if (item.children.length > 0) {
-            let begin = "{\n";
+            let begin = `{\n`;
             item.children.forEach((dataItem: any) => {
               let itemType = javaToTs(dataItem["类型"]);
               //对于数组和对象 就再判断一层，第三层就不判断了，顶多判断两
@@ -267,14 +286,20 @@ function parseAllPageData() {
                   let childbegin = "{\n";
                   dataItem.children.forEach((paramChild: any) => {
                     const childItemType = javaToTs(paramChild["类型"]);
-                    childbegin += `${paramChild["参数名称"]}:${childItemType};\/\/ ${paramChild["参数说明"]}\n`;
+                    childbegin += `  /**
+   * ${paramChild["参数说明"]}
+   */\n`;
+                    childbegin += `  ${paramChild["参数名称"]}: ${childItemType}\n`;
                   });
                   itemType = itemType.replace("any", childbegin + "}");
                 }
               } catch (error) {
                 itemType = javaToTs(dataItem["类型"]);
               }
-              begin += `${dataItem["参数名称"]}:${itemType};\/\/ ${dataItem["参数说明"]}\n`;
+              begin += `  /**
+   * ${dataItem["参数说明"]}
+   */\n`;
+              begin += `  ${dataItem["参数名称"]}: ${itemType};\/\/ ${dataItem["参数说明"]}\n`;
             });
 
             resTypeStr =
@@ -308,12 +333,26 @@ function parseAllPageData() {
     }
     return "any";
   }
+  // 去除循环引用的json转换
+  function jsonDelPre(obj: object) {
+    return JSON.parse(
+      JSON.stringify(obj, (key, value) => {
+        if (key === "pre") {
+          return "pre";
+        } else {
+          return value;
+        }
+      })
+    );
+  }
   return {
     method: urlAndMethod[0],
     url: urlAndMethod[1],
     desc,
     paramsType,
     resType,
+    paramsData: jsonDelPre(paramsData),
+    resData: jsonDelPre(resData),
   };
 }
 // 获取谷歌路径
@@ -351,7 +390,13 @@ function getChromePath() {
 function regCommand() {
   vscode.commands.registerCommand(
     "wingmate.api",
-    async (pageData: SpiderDataType, apiName: string, apiCode: string) => {
+    async (
+      pageData: SpiderDataType,
+      apiName: string,
+      apiCode: string,
+      paramsType: string,
+      resultType: string
+    ) => {
       const activeEditor = vscode.window.activeTextEditor;
       if (activeEditor) {
         const filePath = activeEditor.document.fileName;
@@ -378,8 +423,18 @@ function regCommand() {
             module !== "common"
               ? resolve(filePath.split("views")[0], `api/${module}.ts`)
               : resolve(dirname(pkgPath as string), `src/api/${module}.ts`);
+
+          const apiTypeFile =
+            module !== "common"
+              ? resolve(filePath.split("views")[0], `api/types/${module}.d.ts`)
+              : resolve(
+                  dirname(pkgPath as string),
+                  `src/api/types/${module}.d.ts`
+                );
+
           try {
             mkdirSync(dirname(apiFile), { recursive: true }); // 使用 recursive 选项自动创建中间目录
+            mkdirSync(dirname(apiTypeFile), { recursive: true }); // 使用 recursive 选项自动创建中间目录
           } catch (err: any) {
             if (err.code !== "EEXIST") {
               throw err;
@@ -392,21 +447,42 @@ function regCommand() {
               console.log("error :>> ", err);
               // 发生错误时处理
               const tsCode =
-                `import actionRequest from '@/utils/request';\n` + apiCode;
+                `import actionRequest from '@/utils/request';
+import * as T from './types/${module}'\n
+                ` + apiCode;
               writeFileSync(apiFile, tsCode);
               return;
             }
             // 没有引入axios封装的方法就从默认路径引入
             if (!tsCode.includes("actionRequest")) {
               tsCode =
-                `import actionRequest from '@/utils/request';\n` + tsCode;
+                `import actionRequest from '@/utils/request';\n
+                import * as T from './types/${module}'\n
+                ` + tsCode;
             }
             if (!tsCode.includes(apiName)) {
               tsCode += apiCode;
               writeFileSync(apiFile, tsCode);
             }
           });
+
+          readFile(apiTypeFile, "utf-8", (err, typeCode = "") => {
+            if (err) {
+              console.log("error :>> ", err);
+              typeCode += paramsType;
+              typeCode += resultType;
+              // 发生错误时处理
+              writeFileSync(apiTypeFile, typeCode);
+              return;
+            }
+            if (!typeCode.includes(apiName)) {
+              typeCode += paramsType;
+              typeCode += resultType;
+              writeFileSync(apiTypeFile, typeCode);
+            }
+          });
         }
+        // 创建并写入
       }
     }
   );
@@ -431,28 +507,158 @@ function createApiCode(pageData: SpiderDataType, url: string) {
       return word.charAt(0).toUpperCase() + word.slice(1);
     })
     .join("");
-
+  // 方法名
+  const methodName = pageData.method.toLowerCase() + caml;
+  // 参数名
+  const paramsName = methodName + "ParamsType";
+  // 返回值名
+  const resultName = methodName + "ResultType";
+  // 参数类型
+  const paramsType = `\n/**
+   * @description: ${pageData.desc}
+   * @description: "参数类型"
+   */
+export type ${paramsName} = ${pageData.paramsType}\n `;
+  // 返回值类型
+  const resultType = `\n/**
+   * @description: ${pageData.desc}
+   * @description: "返回值类型"
+   */
+export type ${resultName} = ${pageData.resType}\n `;
+  // 参数注释
+  const paramsTypeDoc = paramsDoc(pageData.paramsData);
+  const resultTypeDoc = resultDoc(pageData.resData);
+  // 返回值注释
   const code = `
 /**
  * @description: ${pageData.desc}
- * @param {P} data
- * @type {T} ${pageData.method}
+ * @description: ${pageData.method}请求
  * @doc {string} ${url}
- * @return {R}
+${paramsTypeDoc}
+${resultTypeDoc}
  */
-export const ${pageData.method.toLowerCase() + caml} =     <P extends ${
-    pageData.paramsType
-  },R extends Promise<${pageData.resType}>>(data:P):R => {
+export const ${methodName} = <P extends T.${paramsName}, R extends T.${resultName}>(data: P): Promise<R> => {
   return actionRequest({
-    url: '${path}'${endParams ? `+'/'+data.${endParams}` : ""},
+    url: '${path}'${endParams ? ` + '/' + data.${endParams}` : ""},
     method: '${pageData.method.toLowerCase()}',
     ${pageData.method.toLowerCase() === "get" ? "params" : "data"}: data
-  }) as unknown as R
+  }) as unknown as Promise<R>
 }
 
 `;
+
   return {
     apiName: pageData.method.toLowerCase() + caml,
     apiCode: code,
+    paramsType,
+    resultType,
   };
+}
+
+// 从数据解析 参数的注释
+function paramsDoc(paramsData: Record<string, any>) {
+  if (!paramsData) {
+    return `
+* @param {Object} data - 参数对象`;
+  }
+  let begin = ``;
+  try {
+    if (paramsData?.[0]["请求类型"] === "body") {
+      paramsData[0].children.forEach((paramItem: any) => {
+        let itemType = javaToTs(paramItem["数据类型"]);
+        begin += `\n* @param {${itemType}} data.${paramItem["参数名称"]} - ${paramItem["参数说明"]}`;
+        //对于数组和对象 就再判断一层，第三层就不判断了，顶多判断两层
+        if (
+          (itemType.includes("Array") || itemType.includes("Record")) &&
+          paramItem.children.length > 0
+        ) {
+          let childbegin = ``;
+          paramItem.children.forEach((paramChild: any) => {
+            const childItemType = javaToTs(paramChild["数据类型"]);
+            childbegin += `\n* @param {${childItemType}} data.${paramItem["参数名称"]}.${paramChild["参数名称"]} - ${paramChild["参数说明"]}`;
+          });
+          begin += childbegin;
+        }
+      });
+    } else {
+      paramsData.forEach((paramItem: any) => {
+        let itemType = javaToTs(paramItem["数据类型"]);
+        begin += `\n* @param {${itemType}} data.${paramItem["参数名称"]} - ${paramItem["参数说明"]}`;
+      });
+    }
+  } catch (error) {
+    console.log("error :>> ", error);
+    return `
+    * @param {Object} data - 参数对象`;
+  }
+  return `* @param {Object} data - 参数对象 ${begin}`;
+}
+// 返回值注释
+function resultDoc(resultData: Record<string, any>) {
+  if (!resultDoc) {
+    return `
+* @returns {Object} result.data  返回值对象
+`;
+  }
+  let resTypeDoc = `* @returns {Object} result.data  返回值对象`;
+  try {
+
+
+  resultData.find((item: Record<string, any>) => {
+    if (item["参数名称"] === "data") {
+      if (item.children.length > 0) {
+        item.children.forEach((dataItem: any) => {
+          let itemType = javaToTs(dataItem["类型"]);
+          resTypeDoc += `\n* @property {${itemType}} result.data.${dataItem["参数名称"]} - ${dataItem["参数说明"]}`;
+          //对于数组和对象 就再判断一层，第三层就不判断了，顶多判断两层
+          if (
+            (itemType.includes("Array") || itemType.includes("Record")) &&
+            dataItem.children.length > 0
+          ) {
+            let childbegin = ``;
+            dataItem.children.forEach((paramChild: any) => {
+              const childItemType = javaToTs(paramChild["类型"]);
+              childbegin += `\n* @property {${childItemType}} result.data.${dataItem["参数名称"]}.${paramChild["参数名称"]} - ${paramChild["参数说明"]}`;
+            });
+            resTypeDoc += childbegin;
+          }
+        });
+      }
+
+      return true;
+    }
+  });
+} catch (error) {
+  return `
+  * @returns {Object} result.data  返回值对象
+  `;
+}
+  return resTypeDoc;
+}
+
+/**
+ * @param {Object} triforce - The Triforce object.
+ * @param {boolean} triforce.hasCourage - Indicates if it has courage.
+ * @param {boolean} triforce.hasPower - Indicates if it has power.
+ * @param {boolean} triforce.hasWisdom - Indicates if it has wisdom.
+ * @returns {Object} 描述返回值的详细信息
+ * @property {string} prop1 - 描述 prop1 字段的信息
+ * @property {number} prop2 - 描述 prop2 字段的信息
+ * @property {boolean} prop3 - 描述 prop3 字段的信息
+ */
+// java类型转ts
+function javaToTs(type: string) {
+  if (type.includes("string")) {
+    return "string";
+  }
+  if (type.includes("integer") || type.includes("number")) {
+    return "number";
+  }
+  if (type.includes("object")) {
+    return "Record<string,any>";
+  }
+  if (type.includes("array")) {
+    return "Array<any>";
+  }
+  return "any";
 }

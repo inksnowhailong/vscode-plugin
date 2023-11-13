@@ -3,7 +3,7 @@ import puppeteer from "puppeteer-core";
 import * as vscode from "vscode";
 import { platform } from "os";
 import { mkdirSync, readFile, readFileSync, readSync, writeFileSync } from "fs";
-import { findNearestPackageJson } from "./tool";
+import { findNearestPackageJson, getOptions } from "./tool";
 import { dirname, resolve, sep } from "path";
 const LANGUAGES = ["typescriptreact", "typescript", "vue"];
 
@@ -99,7 +99,9 @@ async function spiderHtmlData(
   const pageData: SpiderDataType = await new Promise((resolve) => {
     vscode.window.withProgress(progressOptions, async (progress) => {
       // 获取谷歌路径
-      const chromePath = getChromePath();
+      // 获取配置中的命令
+      const { exePath } = await getOptions();
+      const chromePath = exePath ? exePath : getChromePath();
       progress.report({ increment: 10, message: "开始爬取..." });
       try {
         progress.report({ increment: 20, message: "创建浏览器实例..." });
@@ -154,6 +156,7 @@ function parseAllPageData() {
   const paramsType = paramsdataToTS(paramsData?.[0]);
   // 返回值相关
   const resData = parseTableData(titleObj["响应参数"]);
+  console.log("resData :>> ", resData);
   const resType = resDataToTs(resData);
 
   // 解析table数据函数 必须定义在这里 因为page.evaluate里面的作用域 引用不到当前文件内定义的东西
@@ -359,15 +362,8 @@ function parseAllPageData() {
 function getChromePath() {
   try {
     if (platform() === "win32") {
-      // For Windows
-      const result = execSync(
-        'reg query "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\chrome.exe" /v Path'
-      );
-
-      let path = result.toString().split(/\s+/).slice(4).join(" ").trim();
-      path = path.replace("REG_SZ ", "");
-      path += "\\chrome.exe";
-      return path;
+      return "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+      // return "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
     } else if (platform() === "darwin") {
       // For macOS
       // const result = execSync(
@@ -404,6 +400,7 @@ function regCommand() {
         if (!pkgPath) {
           return;
         }
+        const { apiFileMode } = await getOptions();
         if (filePath.includes("views")) {
           const targetUrl = filePath.split("views")[1].split(sep);
           // 大于2，正面是views下的某个目录里面的文件， 如果不大于2，文件就在views下面
@@ -419,19 +416,43 @@ function regCommand() {
         // 创建并写入api信息
         function createApifileAndWrite(module: string) {
           // 创建中间目录（如果不存在）
-          const apiFile =
-            module !== "common"
-              ? resolve(filePath.split("views")[0], `api/${module}.ts`)
-              : resolve(dirname(pkgPath as string), `src/api/${module}.ts`);
+          let apiFile = "";
+          let apiTypeFile = "";
+          // api目录
+          if (apiFileMode === "api") {
+            apiFile =
+              module !== "common"
+                ? resolve(filePath.split("views")[0], `api/${module}.ts`)
+                : resolve(dirname(pkgPath as string), `src/api/${module}.ts`);
 
-          const apiTypeFile =
-            module !== "common"
-              ? resolve(filePath.split("views")[0], `api/types/${module}.d.ts`)
-              : resolve(
-                  dirname(pkgPath as string),
-                  `src/api/types/${module}.d.ts`
-                );
+            apiTypeFile =
+              module !== "common"
+                ? resolve(
+                    filePath.split("views")[0],
+                    `api/types/${module}.d.ts`
+                  )
+                : resolve(
+                    dirname(pkgPath as string),
+                    `src/api/types/${module}.d.ts`
+                  );
+          } else if (apiFileMode === "COM") {
+            const activeEditor = vscode.window.activeTextEditor;
+            const path = activeEditor?.document.fileName;
 
+            if (path) {
+              const basePath = dirname(path)
+                .split(sep)
+                .filter((item) => item !== "modules")
+                .join(sep);
+              apiFile = resolve(basePath, "api.ts");
+              apiTypeFile = resolve(basePath, "types/api.d.ts");
+              module = "api";
+            }
+          } else {
+            apiFile = resolve(apiFileMode as string, "api.ts");
+            apiTypeFile = resolve(apiFileMode as string, "types/api.ts");
+            module = "api";
+          }
           try {
             mkdirSync(dirname(apiFile), { recursive: true }); // 使用 recursive 选项自动创建中间目录
             mkdirSync(dirname(apiTypeFile), { recursive: true }); // 使用 recursive 选项自动创建中间目录
@@ -602,37 +623,36 @@ function resultDoc(resultData: Record<string, any>) {
   }
   let resTypeDoc = `* @returns {Object} result.data  返回值对象`;
   try {
+    resultData.find((item: Record<string, any>) => {
+      if (item["参数名称"] === "data") {
+        if (item.children.length > 0) {
+          item.children.forEach((dataItem: any) => {
+            let itemType = javaToTs(dataItem["类型"]);
+            resTypeDoc += `\n* @property {${itemType}} result.data.${dataItem["参数名称"]} - ${dataItem["参数说明"]}`;
+            //对于数组和对象 就再判断一层，第三层就不判断了，顶多判断两层
+            if (
+              (itemType.includes("Array") || itemType.includes("Record")) &&
+              dataItem.children.length > 0
+            ) {
+              let childbegin = ``;
+              dataItem.children.forEach((paramChild: any) => {
+                const childItemType = javaToTs(paramChild["类型"]);
+                childbegin += `\n* @property {${childItemType}} result.data.${dataItem["参数名称"]}.${paramChild["参数名称"]} - ${paramChild["参数说明"]}`;
+              });
+              resTypeDoc += childbegin;
+            }
+          });
+        }
 
-
-  resultData.find((item: Record<string, any>) => {
-    if (item["参数名称"] === "data") {
-      if (item.children.length > 0) {
-        item.children.forEach((dataItem: any) => {
-          let itemType = javaToTs(dataItem["类型"]);
-          resTypeDoc += `\n* @property {${itemType}} result.data.${dataItem["参数名称"]} - ${dataItem["参数说明"]}`;
-          //对于数组和对象 就再判断一层，第三层就不判断了，顶多判断两层
-          if (
-            (itemType.includes("Array") || itemType.includes("Record")) &&
-            dataItem.children.length > 0
-          ) {
-            let childbegin = ``;
-            dataItem.children.forEach((paramChild: any) => {
-              const childItemType = javaToTs(paramChild["类型"]);
-              childbegin += `\n* @property {${childItemType}} result.data.${dataItem["参数名称"]}.${paramChild["参数名称"]} - ${paramChild["参数说明"]}`;
-            });
-            resTypeDoc += childbegin;
-          }
-        });
+        return true;
       }
-
-      return true;
-    }
-  });
-} catch (error) {
-  return `
+    });
+  } catch (error) {
+    console.log("error :>> ", error);
+    return `
   * @returns {Object} result.data  返回值对象
   `;
-}
+  }
   return resTypeDoc;
 }
 

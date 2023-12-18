@@ -139,7 +139,7 @@ function parseAllPageData() {
   // 描述信息
   // @ts-ignore
   const desc =
-    document.getElementsByClassName("api-body-desc")[0]?.textContent || "";
+    document.getElementsByClassName("api-body-desc")[0]?.textContent||document.getElementsByClassName("knife4j-api-title")[0]?.textContent?.trim().split(' ')[0] || "";
   // 所有表格和示例代码的DOM元素
   const titleObj: Record<PageModule, HTMLElement> = Array.from(
     document.getElementsByClassName("api-title")
@@ -402,15 +402,12 @@ function regCommand() {
           return;
         }
         const { apiFileMode } = await getOptions();
-        if (filePath.includes("views")) {
-          const targetUrl = filePath.split("views")[1].split(sep);
-          // 大于2，正面是views下的某个目录里面的文件， 如果不大于2，文件就在views下面
-          if (targetUrl.length > 2) {
-            const targetModule = targetUrl[1];
-            createApifileAndWrite(targetModule);
-          } else {
-            createApifileAndWrite("common");
-          }
+        if (filePath.includes("src")) {
+          //从当前目录 解析出来 目录的一层一层结构，并反转，让最后一个目录在前面
+          const targetUrl = dirname(filePath).split(sep).reverse();
+          const srcIndex = targetUrl.indexOf('src');
+          // 如果是src一级目录下，就用src作为ts名称，否则就是所在目录和父级的目录名称组合起来
+          createApifileAndWrite(srcIndex===0?'src':targetUrl.slice(0,srcIndex).slice(0,2).reverse().join('_'));
         } else {
           createApifileAndWrite("common");
         }
@@ -421,22 +418,17 @@ function regCommand() {
           let apiTypeFile = "";
           // api目录
           if (apiFileMode === "api") {
-            apiFile =
-              module !== "common"
-                ? resolve(filePath.split("views")[0], `api/${module}.ts`)
-                : resolve(dirname(pkgPath as string), `src/api/${module}.ts`);
+            apiFile = resolve(
+              dirname(pkgPath as string),
+              `src/api/${module}.ts`
+            );
 
-            apiTypeFile =
-              module !== "common"
-                ? resolve(
-                    filePath.split("views")[0],
-                    `api/types/${module}.ts`
-                  )
-                : resolve(
-                    dirname(pkgPath as string),
-                    `src/api/types/${module}.ts`
-                  );
+            apiTypeFile = resolve(
+              dirname(pkgPath as string),
+              `src/api/types/${module}.ts`
+            );
           } else if (apiFileMode === "COM") {
+
             const activeEditor = vscode.window.activeTextEditor;
             const path = activeEditor?.document.fileName;
 
@@ -463,7 +455,6 @@ function regCommand() {
             }
           }
 
-          // 读取 vite 文件内容
           readFile(apiFile, "utf-8", (err, tsCode) => {
             if (err) {
               console.log("error :>> ", err);
@@ -482,7 +473,7 @@ import * as T from './types/${module}'\n
                 import * as T from './types/${module}'\n
                 ` + tsCode;
             }
-            if (!tsCode.includes(apiName)) {
+            if (!new RegExp(`\\b${apiName}\\b`).test(tsCode)) {
               tsCode += apiCode;
               writeFileSync(apiFile, tsCode);
             }
@@ -497,7 +488,7 @@ import * as T from './types/${module}'\n
               writeFileSync(apiTypeFile, typeCode);
               return;
             }
-            if (!typeCode.includes(apiName)) {
+            if (!new RegExp(`\\b${apiName}\\b`).test(typeCode)) {
               typeCode += paramsType;
               typeCode += resultType;
               writeFileSync(apiTypeFile, typeCode);
@@ -656,7 +647,6 @@ function resultDoc(resultData: Record<string, any>) {
   }
   return resTypeDoc;
 }
-
 
 // java类型转ts
 function javaToTs(type: string) {

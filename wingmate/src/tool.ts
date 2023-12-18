@@ -58,6 +58,7 @@ export async function getOptions() {
     const configJSON = await import(
       resolve(dirname(pkgPath), "wingmate.config.json")
     );
+    console.log('configJSON :>> ', configJSON);
     if (configJSON.apiFileMode) {
       baseOption.apiFileMode = configJSON.apiFileMode;
     }
@@ -65,6 +66,7 @@ export async function getOptions() {
       baseOption.exePath = configJSON.exePath;
     }
   } catch (error) {
+    console.log('error :>> ', error);
   }
   return baseOption;
 }

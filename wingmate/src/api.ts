@@ -395,6 +395,7 @@ function regCommand() {
     ) => {
       const activeEditor = vscode.window.activeTextEditor;
       if (activeEditor) {
+        // 获取当前文件路径
         const filePath = activeEditor.document.fileName;
         const pkgPath = await findNearestPackageJson(filePath);
         if (!pkgPath) {
@@ -429,11 +430,11 @@ function regCommand() {
               module !== "common"
                 ? resolve(
                     filePath.split("views")[0],
-                    `api/types/${module}.d.ts`
+                    `api/types/${module}.ts`
                   )
                 : resolve(
                     dirname(pkgPath as string),
-                    `src/api/types/${module}.d.ts`
+                    `src/api/types/${module}.ts`
                   );
           } else if (apiFileMode === "COM") {
             const activeEditor = vscode.window.activeTextEditor;
@@ -445,7 +446,7 @@ function regCommand() {
                 .filter((item) => item !== "modules")
                 .join(sep);
               apiFile = resolve(basePath, "api.ts");
-              apiTypeFile = resolve(basePath, "types/api.d.ts");
+              apiTypeFile = resolve(basePath, "types/api.ts");
               module = "api";
             }
           } else {
@@ -656,16 +657,7 @@ function resultDoc(resultData: Record<string, any>) {
   return resTypeDoc;
 }
 
-/**
- * @param {Object} triforce - The Triforce object.
- * @param {boolean} triforce.hasCourage - Indicates if it has courage.
- * @param {boolean} triforce.hasPower - Indicates if it has power.
- * @param {boolean} triforce.hasWisdom - Indicates if it has wisdom.
- * @returns {Object} 描述返回值的详细信息
- * @property {string} prop1 - 描述 prop1 字段的信息
- * @property {number} prop2 - 描述 prop2 字段的信息
- * @property {boolean} prop3 - 描述 prop3 字段的信息
- */
+
 // java类型转ts
 function javaToTs(type: string) {
   if (type.includes("string")) {

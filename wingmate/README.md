@@ -25,3 +25,8 @@ ts或vue文件中，输入`@api xxx|`,即可触发接口爬取
 
 > 注意：knife4j,文档 不能有账号密码登录，因为那样无法进行登录，就无法爬取，所以请和后端沟通好
 
+### options
+vscode的设置中设置，或者项目根目录中添加wingmate.config.json（这个权重更高）
+- wingmate.exePath 谷歌浏览器或eage浏览器可执行文件地址 默认使用浏览器的默认安装地址
+- wingmate.apiFileMode 设置api文件生成模式，默认api,生成在api目录，可选:COM，COM包模式，当前com包目录;自定义的绝对路径
+

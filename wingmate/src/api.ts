@@ -6,7 +6,7 @@ import { mkdirSync, readFile, readFileSync, readSync, writeFileSync } from "fs";
 import { findNearestPackageJson, getOptions } from "./tool";
 import { dirname, resolve, sep } from "path";
 const LANGUAGES = ["typescriptreact", "typescript", "vue"];
-
+import dedent from "dedent";
 interface SpiderDataType {
   method: string;
   url: string;
@@ -139,7 +139,12 @@ function parseAllPageData() {
   // 描述信息
   // @ts-ignore
   const desc =
-    document.getElementsByClassName("api-body-desc")[0]?.textContent||document.getElementsByClassName("knife4j-api-title")[0]?.textContent?.trim().split(' ')[0] || "";
+    document.getElementsByClassName("api-body-desc")[0]?.textContent ||
+    document
+      .getElementsByClassName("knife4j-api-title")[0]
+      ?.textContent?.trim()
+      .split(" ")[0] ||
+    "";
   // 所有表格和示例代码的DOM元素
   const titleObj: Record<PageModule, HTMLElement> = Array.from(
     document.getElementsByClassName("api-title")
@@ -156,7 +161,6 @@ function parseAllPageData() {
   const paramsType = paramsdataToTS(paramsData?.[0]);
   // 返回值相关
   const resData = parseTableData(titleObj["响应参数"]);
-  console.log("resData :>> ", resData);
   const resType = resDataToTs(resData);
 
   // 解析table数据函数 必须定义在这里 因为page.evaluate里面的作用域 引用不到当前文件内定义的东西
@@ -268,7 +272,7 @@ function parseAllPageData() {
   }
   //parseTableData的数据 转换为Ts类型  对于响应参数的
   function resDataToTs(data: Record<string, any>[] | undefined) {
-    const baseRes = `{code:number;data:any;error:boolean;message:string;success:boolean;}`;
+    const baseRes = `any`;
     if (!data) {
       return baseRes;
     }
@@ -404,10 +408,36 @@ function regCommand() {
         const { apiFileMode } = await getOptions();
         if (filePath.includes("src")) {
           //从当前目录 解析出来 目录的一层一层结构，并反转，让最后一个目录在前面
-          const targetUrl = dirname(filePath).split(sep).reverse();
-          const srcIndex = targetUrl.indexOf('src');
+          const targetUrlList = dirname(filePath).split(sep).reverse();
+          const srcIndex = targetUrlList.slice().reverse().indexOf("src");
+          let module = "";
           // 如果是src一级目录下，就用src作为ts名称，否则就是所在目录和父级的目录名称组合起来
-          createApifileAndWrite(srcIndex===0?'src':targetUrl.slice(0,srcIndex).slice(0,2).reverse().join('_'));
+          if (srcIndex === 0) {
+            module = "src";
+          } else if (
+            targetUrlList.includes("views") &&
+            targetUrlList[0] !== "views"
+          ) {
+            // 有views  则以views 下的第一层作为模块，再加上父级目录，本级目录
+            const viewsIndex = targetUrlList.indexOf("views");
+            module =
+            // views下一级目录名称
+              targetUrlList[viewsIndex - 1] +
+              "_" +
+              targetUrlList
+                .slice(0, srcIndex)
+                .slice(0, 2)// 截取当前文件所在目录，和父级目录
+                .filter((item) => item !== targetUrlList[viewsIndex - 1]&&item !=='views')//如果一级目录重复，就过滤掉
+                .reverse()
+                .join("_");
+          } else {
+            module = targetUrlList
+              .slice(0, srcIndex)
+              .slice(0, 2)
+              .reverse()
+              .join("_");
+          }
+          createApifileAndWrite(module);
         } else {
           createApifileAndWrite("common");
         }
@@ -428,7 +458,6 @@ function regCommand() {
               `src/api/types/${module}.ts`
             );
           } else if (apiFileMode === "COM") {
-
             const activeEditor = vscode.window.activeTextEditor;
             const path = activeEditor?.document.fileName;
 
@@ -456,22 +485,27 @@ function regCommand() {
           }
 
           readFile(apiFile, "utf-8", (err, tsCode) => {
+            const tsCodeBase = dedent`import actionRequest from '@/utils/request';
+            import * as T from './types/${module}'\n
+            type BaseResponse<T> = {
+              code?: number
+              message?: string
+              data?: T
+              tid?: any
+              error?: boolean
+              success?: boolean
+            }\n`;
             if (err) {
               console.log("error :>> ", err);
+
               // 发生错误时处理
-              const tsCode =
-                `import actionRequest from '@/utils/request';
-import * as T from './types/${module}'\n
-                ` + apiCode;
+              const tsCode = tsCodeBase + apiCode;
               writeFileSync(apiFile, tsCode);
               return;
             }
             // 没有引入axios封装的方法就从默认路径引入
             if (!tsCode.includes("actionRequest")) {
-              tsCode =
-                `import actionRequest from '@/utils/request';\n
-                import * as T from './types/${module}'\n
-                ` + tsCode;
+              tsCode = tsCodeBase + tsCode;
             }
             if (!new RegExp(`\\b${apiName}\\b`).test(tsCode)) {
               tsCode += apiCode;
@@ -527,13 +561,13 @@ function createApiCode(pageData: SpiderDataType, url: string) {
   // 返回值名
   const resultName = methodName + "ResultType";
   // 参数类型
-  const paramsType = `\n/**
+  const paramsType = dedent`\n/**
    * @description: ${pageData.desc}
    * @description: "参数类型"
    */
 export type ${paramsName} = ${pageData.paramsType}\n `;
   // 返回值类型
-  const resultType = `\n/**
+  const resultType = dedent`\n/**
    * @description: ${pageData.desc}
    * @description: "返回值类型"
    */
@@ -542,7 +576,7 @@ export type ${resultName} = ${pageData.resType}\n `;
   const paramsTypeDoc = paramsDoc(pageData.paramsData);
   const resultTypeDoc = resultDoc(pageData.resData);
   // 返回值注释
-  const code = `
+  const code = dedent`
 /**
  * @description: ${pageData.desc}
  * @description: ${pageData.method}请求
@@ -550,12 +584,12 @@ export type ${resultName} = ${pageData.resType}\n `;
 ${paramsTypeDoc}
 ${resultTypeDoc}
  */
-export const ${methodName} = <P extends T.${paramsName}, R extends T.${resultName}>(data: P): Promise<R> => {
+export const ${methodName} = <P extends T.${paramsName}, R extends T.${resultName}>(data: P): Promise<BaseResponse<R>> => {
   return actionRequest({
     url: '${path}'${endParams ? ` + '/' + data.${endParams}` : ""},
     method: '${pageData.method.toLowerCase()}',
     ${pageData.method.toLowerCase() === "get" ? "params" : "data"}: data
-  }) as unknown as Promise<R>
+  }) as unknown as Promise<BaseResponse<R>>
 }
 
 `;
@@ -571,7 +605,7 @@ export const ${methodName} = <P extends T.${paramsName}, R extends T.${resultNam
 // 从数据解析 参数的注释
 function paramsDoc(paramsData: Record<string, any>) {
   if (!paramsData) {
-    return `
+    return dedent`
 * @param {Object} data - 参数对象`;
   }
   let begin = ``;
@@ -601,7 +635,7 @@ function paramsDoc(paramsData: Record<string, any>) {
     }
   } catch (error) {
     console.log("error :>> ", error);
-    return `
+    return dedent`
     * @param {Object} data - 参数对象`;
   }
   return `* @param {Object} data - 参数对象 ${begin}`;
@@ -609,11 +643,11 @@ function paramsDoc(paramsData: Record<string, any>) {
 // 返回值注释
 function resultDoc(resultData: Record<string, any>) {
   if (!resultDoc) {
-    return `
+    return dedent`
 * @returns {Object} result.data  返回值对象
 `;
   }
-  let resTypeDoc = `* @returns {Object} result.data  返回值对象`;
+  let resTypeDoc = dedent`* @returns {Object} result.data  返回值对象`;
   try {
     resultData.find((item: Record<string, any>) => {
       if (item["参数名称"] === "data") {
@@ -641,7 +675,7 @@ function resultDoc(resultData: Record<string, any>) {
     });
   } catch (error) {
     console.log("error :>> ", error);
-    return `
+    return dedent`
   * @returns {Object} result.data  返回值对象
   `;
   }

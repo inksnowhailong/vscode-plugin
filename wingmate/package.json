@@ -2,7 +2,7 @@
   "name": "wingmate",
   "displayName": "wingmate",
   "description": "僚机",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "author": {
     "name": "inksnow",
     "email": "inksnowhailong@gmail.com"
@@ -11,7 +11,7 @@
   "engines": {
     "vscode": "^1.70.0"
   },
-  "icon":"./logo.png",
+  "icon": "./logo.png",
   "categories": [
     "Other"
   ],
@@ -20,7 +20,7 @@
     "onLanguage:vue",
     "onStartupFinished"
   ],
-  "contributes":{
+  "contributes": {
     "configuration": {
       "title": "wingmate,自定义浏览器执行文件地址",
       "properties": {
@@ -35,9 +35,8 @@
           "description": "设置api文件生成模式，默认api,生成在api目录，可选:COM，COM包模式，当前com包目录;自定义的绝对路径"
         }
       }
-  }
+    }
   },
-
   "repository": {
     "type": "git",
     "url": "https://github.com/inksnowhailong/vscode-plugin"
@@ -66,6 +65,7 @@
   },
   "dependencies": {
     "axios": "^1.5.1",
+    "dedent": "^1.5.1",
     "esbuild": "^0.19.4",
     "fuse.js": "^6.6.2",
     "puppeteer-core": "^21.3.6",

@@ -2,7 +2,7 @@
   "name": "wingmate",
   "displayName": "wingmate",
   "description": "僚机",
-  "version": "0.0.9",
+  "version": "1.0.0",
   "author": {
     "name": "inksnow",
     "email": "inksnowhailong@gmail.com"
@@ -29,10 +29,24 @@
           "default": "",
           "description": "谷歌浏览器或eage浏览器可执行文件地址"
         },
+        "wingmate.BaseResponse": {
+          "type": "string",
+          "default": "type BaseResponse<T> = {\n  code?: number\n  message?: string\n  data?: T\n  tid?: any\n  error?: boolean\n  success?: boolean\n}",
+          "description": "返回值的基础结构数据类型，需要接受一个泛型，得到实际返回内容的数据类型"
+        },
+        "wingmate.requestMethodContent": {
+          "type": "string",
+          "default": "import actionRequest from '@/utils/request';",
+          "description": "请求函数的引用代码，每个api文件 会自动去引入一个基础的请求函数，推荐是你封装好的axios,并请默认导出一个函数，作为使用"
+        },
         "wingmate.apiFileMode": {
           "type": "string",
           "default": "api",
-          "description": "设置api文件生成模式，默认api,生成在api目录，可选:COM，COM包模式，当前com包目录;自定义的绝对路径"
+          "enum": [
+            "api",
+            "inline"
+          ],
+          "description": "设置api文件生成位置，默认值:api(生成在api目录)，可选值:inline:(当前执行命令文件所在文件夹);直接输入的自定义的绝对路径"
         }
       }
     }

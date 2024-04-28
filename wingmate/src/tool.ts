@@ -37,6 +37,10 @@ export async function findNearestPackageJson(
 export async function getOptions() {
   const baseOption = {
     apiFileMode: "api",
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    BaseResponse:
+      "type BaseResponse<T> = {\ncode?: number\nmessage?: string\ndata?: T\ntid?: any\nerror?: boolean\nsuccess?: boolean\n}",
+    requestMethodContent: "import actionRequest from '@/utils/request';",
     exePath: "",
   };
   const activeEditor = vscode.window.activeTextEditor;
@@ -50,8 +54,12 @@ export async function getOptions() {
   }
 
   let extensionConfig = vscode.workspace.getConfiguration("wingmate");
-   baseOption.apiFileMode = extensionConfig.get<string>("apiFileMode") as string;
-   baseOption.exePath = extensionConfig.get<string>("exePath") as string;
+  baseOption.apiFileMode = extensionConfig.get<string>("apiFileMode") as string;
+  baseOption.exePath = extensionConfig.get<string>("exePath") as string;
+  baseOption.requestMethodContent = extensionConfig.get<string>("requestMethodContent") as string;
+  baseOption.BaseResponse = extensionConfig.get<string>(
+    "BaseResponse"
+  ) as string;
 
   try {
     //读取项目单独配置文件中的内容
@@ -65,8 +73,14 @@ export async function getOptions() {
     if (configJSON.exePath) {
       baseOption.exePath = configJSON.exePath;
     }
+    if (configJSON.BaseResponse) {
+      baseOption.BaseResponse = configJSON.BaseResponse;
+    }
+    if (configJSON.requestMethodContent) {
+      baseOption.requestMethodContent = configJSON.requestMethodContent;
+    }
   } catch (error) {
-    console.log('error :>> ', error);
+    console.log("error :>> ", error);
   }
   return baseOption;
 }

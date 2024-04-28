@@ -8,7 +8,7 @@ Wingmate 是一款 VSCode 扩展，旨在提高前端开发效率，并与 ZingU
       - 第一部分：**/api/{执行@api命令的文件的所在目录名称+父目录名称}.ts**，保存接口函数。
       - 第二部分：**/api/types/{执行@api命令的文件的所在目录名称+父目录名称}.ts**，保存接口函数的参数和返回值 TS 类型。
       - 第三部分：是输入命令位置，会变为生成的接口函数名称，如果你使用了一些自动 import 引入的其他插件，这会有用。
-![演示](images/demo.gif)
+![演示](https://github.com/inksnowhailong/vscode-plugin/raw/master/apidoc2ts/images/demo.gif)
 **注意**：Knife4j 文档不能有账号密码登录，因为那样无法进行登录，就无法爬取，所以请与后端沟通好。
 **配置项**：
 
@@ -20,5 +20,5 @@ Wingmate 是一款 VSCode 扩展，旨在提高前端开发效率，并与 ZingU
 
 如果你觉得这个扩展对你有帮助，欢迎打赏个鸡腿儿呀：
 
-![收款码](images/skm.jpg)
-![收款码](images/skm2.jpg)
+![收款码](https://github.com/inksnowhailong/vscode-plugin/raw/master/apidoc2ts/images/skm.jpg)
+![收款码](https://github.com/inksnowhailong/vscode-plugin/raw/master/apidoc2ts/images/skm2.jpg)

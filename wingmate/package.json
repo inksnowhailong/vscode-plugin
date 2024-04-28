@@ -1,7 +1,7 @@
 {
-  "name": "wingmate",
-  "displayName": "wingmate",
-  "description": "僚机",
+  "name": "apidoc2ts",
+  "displayName": "apidoc2ts",
+  "description": "api接口文档解析到ts请求函数（持续开发中）",
   "version": "1.0.0",
   "author": {
     "name": "inksnow",
@@ -15,7 +15,9 @@
   "categories": [
     "Other"
   ],
+  "pricing": "Free",
   "activationEvents": [
+    "onLanguage:typescriptreact",
     "onLanguage:typescript",
     "onLanguage:vue",
     "onStartupFinished"

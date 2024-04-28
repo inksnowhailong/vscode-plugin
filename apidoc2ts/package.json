@@ -24,24 +24,24 @@
   ],
   "contributes": {
     "configuration": {
-      "title": "wingmate,自定义浏览器执行文件地址",
+      "title": "apidoc2ts,自定义浏览器执行文件地址",
       "properties": {
-        "wingmate.exePath": {
+        "apidoc2ts.exePath": {
           "type": "string",
           "default": "",
           "description": "谷歌浏览器或eage浏览器可执行文件地址"
         },
-        "wingmate.BaseResponse": {
+        "apidoc2ts.BaseResponse": {
           "type": "string",
           "default": "type BaseResponse<T> = {\n  code?: number\n  message?: string\n  data?: T\n  tid?: any\n  error?: boolean\n  success?: boolean\n}",
           "description": "返回值的基础结构数据类型，需要接受一个泛型，得到实际返回内容的数据类型"
         },
-        "wingmate.requestMethodContent": {
+        "apidoc2ts.requestMethodContent": {
           "type": "string",
           "default": "import actionRequest from '@/utils/request';",
           "description": "请求函数的引用代码，每个api文件 会自动去引入一个基础的请求函数，推荐是你封装好的axios,并请默认导出一个函数，作为使用"
         },
-        "wingmate.apiFileMode": {
+        "apidoc2ts.apiFileMode": {
           "type": "string",
           "default": "api",
           "enum": [
@@ -57,6 +57,14 @@
     "type": "git",
     "url": "https://github.com/inksnowhailong/vscode-plugin"
   },
+  "files":[
+    "**/*.png",
+    "**/*.jpg",
+    "**/*.gif",
+    "images/*.png",
+    "images/*.jpg",
+    "images/*.gif"
+  ],
   "main": "./out/extension.js",
   "scripts": {
     "vscode:prepublish": "npm run compile",

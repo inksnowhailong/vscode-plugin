@@ -53,7 +53,7 @@ export async function getOptions() {
     return baseOption;
   }
 
-  let extensionConfig = vscode.workspace.getConfiguration("wingmate");
+  let extensionConfig = vscode.workspace.getConfiguration("apidoc2ts");
   baseOption.apiFileMode = extensionConfig.get<string>("apiFileMode") as string;
   baseOption.exePath = extensionConfig.get<string>("exePath") as string;
   baseOption.requestMethodContent = extensionConfig.get<string>("requestMethodContent") as string;
@@ -64,7 +64,7 @@ export async function getOptions() {
   try {
     //读取项目单独配置文件中的内容
     const configJSON = await import(
-      resolve(dirname(pkgPath), "wingmate.config.json")
+      resolve(dirname(pkgPath), "apidoc2ts.config.json")
     );
     // console.log('configJSON :>> ', configJSON);
     if (configJSON.apiFileMode) {

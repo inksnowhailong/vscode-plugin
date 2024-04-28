@@ -77,8 +77,8 @@ export default function () {
           filterText: "@u " + keyWord + "|",
           sortText: index + "",
           command: {
-            command: "wingmate.util",
-            title: "wingmate.util" + data.item.title,
+            command: "apidoc2ts.util",
+            title: "apidoc2ts.util" + data.item.title,
             arguments: [data.item],
           },
           range,
@@ -189,7 +189,7 @@ function patchImport(sourceCode: string) {
 
 // 注册一个命令，当选择了某个utils代码补全函数时候，触发去修改 vite.config里面的zingUtilsInstall
 function regCommand() {
-  vscode.commands.registerCommand("wingmate.util", async (util: AsyncUtil) => {
+  vscode.commands.registerCommand("apidoc2ts.util", async (util: AsyncUtil) => {
     const activeEditor = vscode.window.activeTextEditor;
     if (activeEditor) {
       const filePath = activeEditor.document.fileName;

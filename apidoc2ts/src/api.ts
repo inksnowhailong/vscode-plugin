@@ -130,8 +130,8 @@ export default function <ParserResult>(
             detail: "生成api接口 " + apiName,
             filterText: "@api " + url + "|",
             command: {
-              command: "wingmate.api",
-              title: "wingmate.api",
+              command: "apidoc2ts.api",
+              title: "apidoc2ts.api",
               arguments: [apiName, apiCode, paramsType, resultType],
             },
             range,
@@ -170,7 +170,7 @@ function getChromePath() {
 // 注册一个命令， 创建api文件和函数
 function regCommand() {
   vscode.commands.registerCommand(
-    "wingmate.api",
+    "apidoc2ts.api",
     async (
       apiName: string,
       apiCode: string,

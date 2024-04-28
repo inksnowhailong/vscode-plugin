@@ -131,11 +131,18 @@ async function spiderHtmlData(
 // 执行js代码 在页面中得到数据
 function parseAllPageData() {
   // 请求method和url地址的信息
-  // @ts-ignore
-  const urlAndMethod: string[] = document
-    .getElementsByClassName("knife4j-api-summary")[0]
-    ?.textContent?.trim()
-    ?.split(" ");
+  const urlAndMethodDOM = document.getElementsByClassName(
+    "knife4j-api-summary"
+  )[0];
+    const method =  urlAndMethodDOM
+    .getElementsByClassName("knife4j-api-summary-method")[0] as HTMLElement;
+    const path =  urlAndMethodDOM
+    .getElementsByClassName("knife4j-api-summary-path")[0] as HTMLElement;
+
+  const urlAndMethod: string[] = [
+    method.textContent?.trim() as string,
+    path.textContent?.trim() as string,
+  ];
   // 描述信息
   // @ts-ignore
   const desc =
@@ -352,6 +359,16 @@ function parseAllPageData() {
       })
     );
   }
+  console.log({
+    method: urlAndMethod[0],
+    url: urlAndMethod[1],
+    desc,
+    paramsType,
+    resType,
+    paramsData: jsonDelPre(paramsData),
+    resData: jsonDelPre(resData),
+  });
+
   return {
     method: urlAndMethod[0],
     url: urlAndMethod[1],
@@ -421,13 +438,16 @@ function regCommand() {
             // 有views  则以views 下的第一层作为模块，再加上父级目录，本级目录
             const viewsIndex = targetUrlList.indexOf("views");
             module =
-            // views下一级目录名称
+              // views下一级目录名称
               targetUrlList[viewsIndex - 1] +
               "_" +
               targetUrlList
                 .slice(0, srcIndex)
-                .slice(0, 2)// 截取当前文件所在目录，和父级目录
-                .filter((item) => item !== targetUrlList[viewsIndex - 1]&&item !=='views')//如果一级目录重复，就过滤掉
+                .slice(0, 2) // 截取当前文件所在目录，和父级目录
+                .filter(
+                  (item) =>
+                    item !== targetUrlList[viewsIndex - 1] && item !== "views"
+                ) //如果一级目录重复，就过滤掉
                 .reverse()
                 .join("_");
           } else {
@@ -555,7 +575,7 @@ function createApiCode(pageData: SpiderDataType, url: string) {
     })
     .join("");
   // 方法名
-  const methodName = pageData.method.toLowerCase() + caml;
+  const methodName = pageData.method.toLowerCase().replace('-','') + caml;
   // 参数名
   const paramsName = methodName + "ParamsType";
   // 返回值名

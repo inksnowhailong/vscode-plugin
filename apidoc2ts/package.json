@@ -17,7 +17,6 @@
   ],
   "pricing": "Free",
   "activationEvents": [
-    "onLanguage:typescriptreact",
     "onLanguage:typescript",
     "onLanguage:vue",
     "onStartupFinished"

@@ -326,4 +326,3 @@ ${BaseResponse}
     }
   );
 }
-// @api https://ucenter-baseline-api.aihuoshi.net/doc.html#/default/[demo%E8%A1%A8%E7%BB%93%E6%9E%84]%E6%A8%A1%E5%9D%97/listDemoTableUsingPOST

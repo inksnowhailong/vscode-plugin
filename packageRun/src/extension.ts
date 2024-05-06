@@ -25,8 +25,33 @@ export function activate(context: vscode.ExtensionContext) {
             "未找到附近的package.json文件,请手动右键它，并执行packageRun"
           );
         }
+      } else if (vscode.workspace.workspaceFolders?.length) {
+        // 如果是有项目打开，但是没打开任何一个文件，就在根目录找package.json
+        const spaceOptions =  vscode.workspace.workspaceFolders.reduce((pre, cur) => {
+          pre[cur.name] = cur.uri.fsPath;
+          return pre
+        }, {} as Record<string, string>)
+        // 选中的项目 大于1个就让用户选择
+        const selectedScript = vscode.workspace.workspaceFolders.length>1? await vscode.window.showQuickPick(
+          Object.keys(spaceOptions),
+          {
+            placeHolder: "选择要执行命令的项目",
+          }
+        ): Object.keys(spaceOptions)[0]
+        // 未选择项目 就退出逻辑
+        if(!selectedScript) return
+        const pkgPath = await findNearestPackageJson(
+          spaceOptions[selectedScript as string]
+        );
+        if (pkgPath) {
+          showScriptList(pkgPath);
+        } else {
+          vscode.window.showInformationMessage(
+            "未找到附近的package.json文件,请手动右键它，并执行packageRun"
+          );
+        }
       } else {
-        vscode.window.showInformationMessage("没有打开的文件");
+        vscode.window.showInformationMessage("请打开一个项目或文件，将自动找到package.json文件");
       }
     }
   );
@@ -66,9 +91,9 @@ async function showScriptList(packageJsonPath: string, filePath = "") {
 
     let targetPath = "";
     // 没有path或者path为package 就在package.json位置执行 否则就在指定位置执行
-    if(!targetScriptObj.path||targetScriptObj.path==='package'){
+    if (!targetScriptObj.path || targetScriptObj.path === "package") {
       targetPath = path.dirname(packageJsonPath);
-    }else{
+    } else {
       targetPath = targetScriptObj.path;
     }
     // 打开终端，执行指定命令
@@ -116,9 +141,7 @@ async function getAllScriptsList(packageJsonPath: string) {
       item.type = "local";
       scriptsList[item.label] = item;
     });
-  } catch (error) {
-
-  }
+  } catch (error) {}
 
   return scriptsList;
 }
@@ -182,4 +205,3 @@ async function findNearestPackageJson(
 export function deactivate() {
   // contextRef = null
 }
-

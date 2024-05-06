@@ -38,9 +38,67 @@ export default function <ParserResult>(
   parser: () => ParserResult,
   createApiCode: (pageData: ParserResult, url: string) => FileContentType
 ) {
+
+  // 注册命令
+  regCommand();
+  return vscode.languages.registerCompletionItemProvider(
+    LANGUAGES, // 语言
+    {
+      async provideCompletionItems(document, position, token) {
+        const lineTextBeforeCursor = document
+          .lineAt(position)
+          .text.slice(0, position.character);
+        const utIndex = lineTextBeforeCursor.indexOf("@api");
+        if (!~utIndex || !lineTextBeforeCursor.includes("|")) {
+          return undefined;
+        }
+        // 竖线|位置
+        const lineIndex = lineTextBeforeCursor.indexOf("|", utIndex);
+
+        // 提取关键参数
+        const url = lineTextBeforeCursor.slice(utIndex + 5, lineIndex);
+        const range = new vscode.Range(
+          position.translate(0, -(url.length + 6)),
+          position
+        );
+        // 爬虫爬取内容
+        const pageData = await spiderHtmlData(url,parser);
+        // 创建代码提示项
+        if (!pageData) {
+          return [];
+        }
+        // 使用模板 生成接口代码
+        const { apiName, apiCode, paramsType, resultType } = createApiCode(
+          pageData,
+          url
+        );
+        return [
+          {
+            documentation: new vscode.MarkdownString().appendCodeblock(
+              apiCode,
+              "typescript"
+            ),
+            insertText: apiName,
+            label: "生成api接口 " + apiName,
+            detail: "生成api接口 " + apiName,
+            filterText: "@api " + url + "|",
+            command: {
+              command: "apidoc2ts.api",
+              title: "apidoc2ts.api",
+              arguments: [apiName, apiCode, paramsType, resultType],
+            },
+            range,
+          },
+        ];
+      },
+    },
+    "|"
+  );
+}
   // 链接网页 爬取内容
-  async function spiderHtmlData(
-    url: string
+  async function spiderHtmlData<ParserResult>(
+    url: string,
+    parser: () => ParserResult
   ): Promise<ParserResult | undefined> {
     if (!url.includes("http")) {
       return;
@@ -86,63 +144,6 @@ export default function <ParserResult>(
     return pageData;
     // const progress = await createProgress();
   }
-  // 注册命令
-  regCommand();
-  return vscode.languages.registerCompletionItemProvider(
-    LANGUAGES, // 语言
-    {
-      async provideCompletionItems(document, position, token) {
-        const lineTextBeforeCursor = document
-          .lineAt(position)
-          .text.slice(0, position.character);
-        const utIndex = lineTextBeforeCursor.indexOf("@api");
-        if (!~utIndex || !lineTextBeforeCursor.includes("|")) {
-          return undefined;
-        }
-        // 竖线|位置
-        const lineIndex = lineTextBeforeCursor.indexOf("|", utIndex);
-
-        // 提取关键参数
-        const url = lineTextBeforeCursor.slice(utIndex + 5, lineIndex);
-        const range = new vscode.Range(
-          position.translate(0, -(url.length + 6)),
-          position
-        );
-        // 爬虫爬取内容
-        const pageData = await spiderHtmlData(url);
-        // 创建代码提示项
-        if (!pageData) {
-          return [];
-        }
-        // 使用模板 生成接口代码
-        const { apiName, apiCode, paramsType, resultType } = createApiCode(
-          pageData,
-          url
-        );
-        return [
-          {
-            documentation: new vscode.MarkdownString().appendCodeblock(
-              apiCode,
-              "typescript"
-            ),
-            insertText: apiName,
-            label: "生成api接口 " + apiName,
-            detail: "生成api接口 " + apiName,
-            filterText: "@api " + url + "|",
-            command: {
-              command: "apidoc2ts.api",
-              title: "apidoc2ts.api",
-              arguments: [apiName, apiCode, paramsType, resultType],
-            },
-            range,
-          },
-        ];
-      },
-    },
-    "|"
-  );
-}
-
 // 获取谷歌路径
 function getChromePath() {
   try {
@@ -325,3 +326,4 @@ ${BaseResponse}
     }
   );
 }
+// @api https://ucenter-baseline-api.aihuoshi.net/doc.html#/default/[demo%E8%A1%A8%E7%BB%93%E6%9E%84]%E6%A8%A1%E5%9D%97/listDemoTableUsingPOST

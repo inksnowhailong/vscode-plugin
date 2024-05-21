@@ -2,7 +2,7 @@
   "name": "apidoc2ts",
   "displayName": "apidoc2ts",
   "description": "api接口文档解析到ts请求函数（持续开发中）",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": {
     "name": "inksnow",
     "email": "inksnowhailong@gmail.com"

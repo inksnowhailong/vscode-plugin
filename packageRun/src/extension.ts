@@ -1,21 +1,249 @@
 import * as vscode from "vscode";
 import path from "path";
-// let contextRef: vscode.ExtensionContext = {} as any
-export function activate(context: vscode.ExtensionContext) {
-  // 右键package.json
-  let disposable = vscode.commands.registerCommand(
-    "packagerun.commands",
-    async (Uri: any) => {
-      const packageJsonPath = Uri.fsPath;
-      await showScriptList(packageJsonPath);
+import * as fs from "fs";
+
+// ==================== 类型定义 ====================
+/**
+ * 命令配置类型
+ */
+type command = {
+  label: string;
+  script: string;
+  path?: string;
+  type: "package" | "local";
+};
+
+/**
+ * 缓存项类型
+ */
+interface CacheItem {
+  timestamp: number;
+  data: any;
+}
+
+// ==================== 全局变量 ====================
+let outputChannel: vscode.OutputChannel;
+const cache = new Map<string, CacheItem>();
+const CACHE_DURATION = 10000; // 缓存有效期10秒
+
+// ==================== 缓存管理 ====================
+/**
+ * 获取缓存数据
+ * @param key 缓存键
+ * @returns 缓存数据或null
+ */
+function getCache<T>(key: string): T | null {
+  const item = cache.get(key);
+  if (!item) return null;
+
+  if (Date.now() - item.timestamp > CACHE_DURATION) {
+    cache.delete(key);
+    return null;
+  }
+
+  return item.data as T;
+}
+
+/**
+ * 设置缓存数据
+ * @param key 缓存键
+ * @param data 要缓存的数据
+ */
+function setCache<T>(key: string, data: T): void {
+  cache.set(key, {
+    timestamp: Date.now(),
+    data
+  });
+}
+
+// ==================== 文件操作 ====================
+/**
+ * 找到最近的package.json文件
+ * @param filePath 当前文件路径
+ * @returns package.json的路径或undefined
+ */
+async function findNearestPackageJson(filePath: string): Promise<string | undefined> {
+  const cacheKey = `nearest_pkg_${filePath}`;
+  const cached = getCache<string>(cacheKey);
+  if (cached) return cached;
+
+  // 创建状态栏项
+  const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
+  statusBarItem.text = "$(search) 正在搜索 package.json...";
+  statusBarItem.show();
+
+  try {
+    const currentDir = path.dirname(filePath);
+    const packageJsonFiles = await vscode.workspace.findFiles(
+      "**/package.json",
+      "**/node_modules/**"
+    );
+
+    let nearestPackageJson: string | undefined;
+    let nearestDistance = 9999;
+
+    for (const packageJsonFile of packageJsonFiles) {
+      const packageJsonPath = packageJsonFile.fsPath;
+      const distance = path.relative(currentDir, packageJsonPath).split(path.sep).length;
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestPackageJson = packageJsonPath;
+      }
+    }
+
+    if (nearestPackageJson) {
+      setCache(cacheKey, nearestPackageJson);
+      statusBarItem.dispose(); // 找到就直接关闭提示
+    } else {
+      statusBarItem.text = "$(error) 未找到 package.json";
+      setTimeout(() => statusBarItem.dispose(), 2000);
+    }
+
+    return nearestPackageJson;
+  } catch (error) {
+    statusBarItem.dispose();
+    return undefined;
+  }
+}
+
+// ==================== 脚本管理 ====================
+/**
+ * 获取所有可用的脚本列表
+ * @param packageJsonPath package.json文件路径
+ * @returns 脚本列表对象
+ */
+async function getAllScriptsList(packageJsonPath: string) {
+  const cacheKey = `scripts_list_${packageJsonPath}`;
+  const cached = getCache<Record<string, command>>(cacheKey);
+  if (cached) return cached;
+
+  outputChannel.appendLine(`正在读取 package.json: ${packageJsonPath}`);
+  const scriptsList: Record<string, command> = {};
+
+  try {
+    const packageJsonContent = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+    outputChannel.appendLine(`成功读取 package.json，包含 ${Object.keys(packageJsonContent.scripts || {}).length} 个脚本`);
+
+    // 并行处理所有配置源
+    await Promise.all([
+      processPackageJsonScripts(packageJsonContent.scripts || {}, scriptsList),
+      processExtensionConfig(scriptsList),
+      processProjectConfig(packageJsonPath, scriptsList)
+    ]);
+
+    setCache(cacheKey, scriptsList);
+    return scriptsList;
+  } catch (error) {
+    outputChannel.appendLine(`读取 package.json 失败: ${error}`);
+    vscode.window.showErrorMessage(`读取 package.json 失败: ${error}`);
+    return scriptsList;
+  }
+}
+
+/**
+ * 处理package.json中的脚本
+ */
+async function processPackageJsonScripts(scripts: Record<string, string>, scriptsList: Record<string, command>) {
+  Object.keys(scripts).forEach((key) => {
+    scriptsList["npm run " + key] = {
+      label: "npm run " + key,
+      script: " npm run " + key,
+      type: "package",
+    };
+  });
+}
+
+/**
+ * 处理扩展配置
+ */
+async function processExtensionConfig(scriptsList: Record<string, command>) {
+  const extensionConfig = vscode.workspace.getConfiguration("packagerun");
+  const configOption = extensionConfig.get<Array<any>>("commandOptions");
+  configOption?.forEach((item: command) => {
+    item.type = "local";
+    scriptsList[item.label] = item;
+  });
+}
+
+/**
+ * 处理项目配置文件
+ */
+async function processProjectConfig(packageJsonPath: string, scriptsList: Record<string, command>) {
+  try {
+    const configPath = path.resolve(path.dirname(packageJsonPath), "packagerun.config.json");
+    if (fs.existsSync(configPath)) {
+      const configJSON = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      configJSON?.commandOptions?.forEach((item: command) => {
+        item.type = "local";
+        scriptsList[item.label] = item;
+      });
+    }
+  } catch (error) {
+    // 配置文件不存在或解析失败时静默处理
+  }
+}
+
+/**
+ * 展示脚本列表并执行选中的脚本
+ * @param packageJsonPath package.json文件路径
+ * @param filePath 当前文件路径
+ */
+async function showScriptList(packageJsonPath: string, filePath = "") {
+  const scriptsList = await getAllScriptsList(packageJsonPath);
+
+  const selectedScript = await vscode.window.showQuickPick(
+    Object.keys(scriptsList),
+    {
+      placeHolder: "选择要执行的脚本",
     }
   );
-  // 使用快捷键
-  let disposable2 = vscode.commands.registerCommand(
-    "packagerun.key",
-    async () => {
+
+  if (selectedScript) {
+    const targetScriptObj = scriptsList[selectedScript];
+    const targetPath = !targetScriptObj.path || targetScriptObj.path === "package"
+      ? path.dirname(packageJsonPath)
+      : targetScriptObj.path;
+
+    runTargetScript(targetScriptObj.script, targetScriptObj.label, targetPath);
+    vscode.window.showInformationMessage(`执行脚本: ${targetScriptObj.script}`);
+  }
+}
+
+/**
+ * 执行目标脚本
+ * @param script 要执行的脚本
+ * @param label 脚本标签
+ * @param workspaceFolderPath 工作目录
+ */
+function runTargetScript(script: string, label: string, workspaceFolderPath: string) {
+  const terminal = vscode.window.createTerminal({
+    name: label,
+    cwd: workspaceFolderPath,
+  });
+  terminal.sendText(script);
+  terminal.show();
+}
+
+// ==================== 扩展激活 ====================
+export function activate(context: vscode.ExtensionContext) {
+  // 创建输出通道
+  outputChannel = vscode.window.createOutputChannel("PackageRun");
+  outputChannel.appendLine("PackageRun 扩展已激活");
+
+  // 注册右键菜单命令
+  context.subscriptions.push(
+    vscode.commands.registerCommand("packagerun.commands", async (Uri: any) => {
+      await showScriptList(Uri.fsPath);
+    })
+  );
+
+  // 注册快捷键命令
+  context.subscriptions.push(
+    vscode.commands.registerCommand("packagerun.key", async () => {
       const activeEditor = vscode.window.activeTextEditor;
+
       if (activeEditor) {
+        // 处理活动编辑器的情况
         const filePath = activeEditor.document.fileName;
         const pkgPath = await findNearestPackageJson(filePath);
         if (pkgPath) {
@@ -26,182 +254,47 @@ export function activate(context: vscode.ExtensionContext) {
           );
         }
       } else if (vscode.workspace.workspaceFolders?.length) {
-        // 如果是有项目打开，但是没打开任何一个文件，就在根目录找package.json
-        const spaceOptions =  vscode.workspace.workspaceFolders.reduce((pre, cur) => {
-          pre[cur.name] = cur.uri.fsPath;
-          return pre
-        }, {} as Record<string, string>)
-        // 选中的项目 大于1个就让用户选择
-        const selectedScript = vscode.workspace.workspaceFolders.length>1? await vscode.window.showQuickPick(
-          Object.keys(spaceOptions),
-          {
-            placeHolder: "选择要执行命令的项目",
-          }
-        ): Object.keys(spaceOptions)[0]
-        // 未选择项目 就退出逻辑
-        if(!selectedScript) return
-        const pkgPath = await findNearestPackageJson(
-          spaceOptions[selectedScript as string]
-        );
-        if (pkgPath) {
-          showScriptList(pkgPath);
-        } else {
-          vscode.window.showInformationMessage(
-            "未找到附近的package.json文件,请手动右键它，并执行packageRun"
-          );
-        }
+        // 处理工作区的情况
+        await handleWorkspaceFolders();
       } else {
         vscode.window.showInformationMessage("请打开一个项目或文件，将自动找到package.json文件");
       }
-    }
+    })
   );
-  context.subscriptions.push(disposable);
-  context.subscriptions.push(disposable2);
 }
 
-type command = {
-  label: string;
-  script: string;
-  path?: string;
-  type: "package" | "local";
-};
-
 /**
- * @description: 展示指定package全部的脚本列表
- * @param {string} packageJsonPath json路径
- * @return {*}
+ * 处理工作区文件夹
  */
-async function showScriptList(packageJsonPath: string, filePath = "") {
-  // 执行路径
-  // let runPath = filePath || packageJsonPath;
-
-  // 获取所有选项
-  const scriptsList = await getAllScriptsList(packageJsonPath);
-
-  // 选中的脚本
-  const selectedScript = await vscode.window.showQuickPick(
-    Object.keys(scriptsList),
-    {
-      placeHolder: "选择要执行的脚本",
-    }
-  );
-  if (selectedScript) {
-    // 执行选中的脚本
-    const targetScriptObj = scriptsList[selectedScript];
-
-    let targetPath = "";
-    // 没有path或者path为package 就在package.json位置执行 否则就在指定位置执行
-    if (!targetScriptObj.path || targetScriptObj.path === "package") {
-      targetPath = path.dirname(packageJsonPath);
-    } else {
-      targetPath = targetScriptObj.path;
-    }
-    // 打开终端，执行指定命令
-    runTargetScript(targetScriptObj.script, targetScriptObj.label, targetPath);
-    vscode.window.showInformationMessage(`执行脚本: ${targetScriptObj.script}`);
+async function handleWorkspaceFolders() {
+  if (!vscode.workspace.workspaceFolders) {
+    return;
   }
-}
 
-/**
- * @description: 获取不同位置的命令配置
- * @param {string} packageJsonPath package.josn位置
- * @return {*}
- */
-async function getAllScriptsList(packageJsonPath: string) {
-  // 获取指定文件的目录的package.json 位置
-  const scriptsList: {
-    [key: string]: command;
-  } = {};
+  const spaceOptions = vscode.workspace.workspaceFolders.reduce((pre, cur) => {
+    pre[cur.name] = cur.uri.fsPath;
+    return pre;
+  }, {} as Record<string, string>);
 
-  // 读取package.json文件
-  const packageJsonContent = await import(packageJsonPath);
-  const scripts = packageJsonContent.scripts;
-  Object.keys(scripts).forEach((key) => {
-    scriptsList["npm run " + key] = {
-      label: "npm run " + key,
-      script: " npm run " + key,
-      type: "package",
-    };
-  });
+  const selectedScript = vscode.workspace.workspaceFolders.length > 1
+    ? await vscode.window.showQuickPick(Object.keys(spaceOptions), {
+        placeHolder: "选择要执行命令的项目",
+      })
+    : Object.keys(spaceOptions)[0];
 
-  // 获取配置中的命令
-  const extensionConfig = vscode.workspace.getConfiguration("packagerun");
-  const configOption = extensionConfig.get<Array<any>>("commandOptions");
-  configOption?.forEach((item: command) => {
-    item.type = "local";
-    scriptsList[item.label] = item;
-  });
-  //读取项目单独配置文件中的内容
-  try {
-    const configJSON = await import(
-      path.resolve(path.dirname(packageJsonPath), "packagerun.config.json")
+  if (!selectedScript) return;
+
+  const pkgPath = await findNearestPackageJson(spaceOptions[selectedScript]);
+  if (pkgPath) {
+    showScriptList(pkgPath);
+  } else {
+    vscode.window.showInformationMessage(
+      "未找到附近的package.json文件,请手动右键它，并执行packageRun"
     );
-
-    configJSON?.commandOptions?.forEach((item: command) => {
-      item.type = "local";
-      scriptsList[item.label] = item;
-    });
-  } catch (error) {}
-
-  return scriptsList;
-}
-
-/**
- * @description: 执行指定脚本
- * @param {string} script 脚本
- * @param {string} label 名称
- * @param {string} workspaceFolderPath 工作目录
- * @return {*}
- */
-export function runTargetScript(
-  script: string,
-  label: string,
-  workspaceFolderPath: string
-) {
-  // 创建一个新的终端实例
-  const terminal = vscode.window.createTerminal({
-    name: label,
-    cwd: workspaceFolderPath,
-  });
-  terminal.sendText(script);
-
-  // 可选：激活终端面板
-  terminal.show();
-}
-
-/**
- * @description: 找到最近的package.json
- * @param {string} filePath
- * @return {*}
- */
-async function findNearestPackageJson(
-  filePath: string
-): Promise<string | undefined> {
-  const currentDir = path.dirname(filePath);
-  const packageJsonFiles = await vscode.workspace.findFiles(
-    "**/package.json",
-    "**/node_modules/**"
-  );
-
-  let nearestPackageJson: string | undefined;
-  let nearestDistance = 9999;
-
-  for (const packageJsonFile of packageJsonFiles) {
-    const packageJsonPath = packageJsonFile.fsPath;
-    // 根据/分割长度
-    const distance = path
-      .relative(currentDir, packageJsonPath)
-      .split(path.sep).length;
-    // 计算最近的
-    if (distance < nearestDistance) {
-      nearestDistance = distance;
-      nearestPackageJson = packageJsonPath;
-    }
   }
-
-  return nearestPackageJson;
 }
 
 export function deactivate() {
-  // contextRef = null
+  outputChannel.appendLine("PackageRun 扩展已停用");
+  outputChannel.dispose();
 }
